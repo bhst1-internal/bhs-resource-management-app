@@ -161,7 +161,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -175,6 +175,7 @@
       googleData.forEach(g => {
         if (!g.createdAt || String(g.createdAt).trim() === '') return;
         g.happeningDate = cleanDate(g.happeningDate);
+        g.ecd = cleanDate(g.ecd);
         
         if (g.clm && Array.isArray(g.clm)) {
             g.clm = {
@@ -354,7 +355,7 @@
     }).join('');
     
     const tContainer = document.getElementById('dash-table-container');
-    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date</th><th>Title</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
 
     document.querySelectorAll('[data-act="open"]').forEach(btn => { 
         btn.addEventListener('click', () => { 
@@ -592,7 +593,7 @@
               plugins: {
                   customCanvasBackgroundColor: { color: '#ffffff' }, 
                   legend: { display:false }, 
-                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; return [`Date: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
+                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; return [`Date Issued: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `ECD: ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
               },
               scales: { 
                   x: { 
@@ -692,11 +693,11 @@
     document.getElementById('dash-export-btn').addEventListener('click', () => {
       const filteredForExport = getFilteredDashboardRecords().sort((a,b)=>b.createdAt-a.createdAt);
       if(filteredForExport.length === 0) return showModal("Export Failed", "No record to export based on current filters.", "alert", true);
-      const csvRows = [['Record No.', 'Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'Status']];
+      const csvRows = [['Record No.', 'Date Issued', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'ECD', 'Status']];
       filteredForExport.forEach(r => {
         const st = getStatus(r), urg = URGENCY[r.urgency] || '';
         let catList = []; if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
+        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({happeningDate: r.ecd}) : ''}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
       });
       const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e=>e.join(",")).join("\n")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
@@ -1094,7 +1095,7 @@
                 ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
-                ${field('Date','happeningDate',r.happeningDate,'date')}
+                ${field('Date Issued','happeningDate',r.happeningDate,'date')}
                 ${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}
                 ${groupField('Criteria','issuedGroup',igBase,igOther,true)}
             </div>
@@ -1110,8 +1111,11 @@
             <div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div>
         </div>
         <div class="sec" id="sec-urgency">
-            <div class="sec-title">Degree of Urgency</div>
+            <div class="sec-title">Degree of Urgency & ECD</div>
             <div class="radio-row">${Object.entries(URGENCY).map(([k,l])=>radio('urgency',l,k,r.urgency===k,'urgency')).join('')}</div>
+            <div class="grid g4" style="margin-top:12px">
+                ${field('Expected Completion Date (ECD)', 'ecd', r.ecd, 'date')}
+            </div>
         </div>
         <div class="sec">
             <div class="sec-title">Detail Description</div>
@@ -1151,7 +1155,7 @@
     
     container.querySelector('#acm-submit-btn').addEventListener('click', async () => {
       state.showErrors = true; let errs = [];
-      if(!checkReq(r.happeningDate)) errs.push("[Classification] Date");
+      if(!checkReq(r.happeningDate)) errs.push("[Classification] Date Issued");
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
@@ -1219,6 +1223,24 @@
         
         state.isDirty = true; setByPath(r, path, newVal);
         
+        // Auto-calculate ECD
+        if (path === 'happeningDate' || path === 'urgency') {
+            if (r.happeningDate && r.urgency) {
+                const baseDate = new Date(r.happeningDate);
+                if (!isNaN(baseDate.getTime())) {
+                    let m = 0;
+                    if (r.urgency === '1month') m = 1;
+                    if (r.urgency === '3months') m = 3;
+                    if (r.urgency === '6months') m = 6;
+                    if (r.urgency === '12months') m = 12;
+                    baseDate.setMonth(baseDate.getMonth() + m);
+                    r.ecd = baseDate.toISOString().split('T')[0];
+                    const ecdEl = container.querySelector('[data-path="ecd"]');
+                    if (ecdEl) ecdEl.value = r.ecd;
+                }
+            }
+        }
+
         if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
         if (path === 'subArea') { r.areaNo = ''; saveRecords(); render(); return; }
         
@@ -1257,6 +1279,7 @@
             <td>${fmtDate(c)}</td>
             <td>${c.title||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
+            <td>${c.ecd ? fmtDate({happeningDate: c.ecd}) : '—'}</td>
             <td><span class="status-chip chip-open">${latestStatus}</span></td>
         </tr>`;
     }).join('');
@@ -1264,7 +1287,7 @@
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Contract List</div>
         <div class="table-panel" style="padding:0;border:none">
             ${contracts.length === 0 ? `<div class="empty-state">No Contract Management records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Date</th><th>Title</th><th>Criteria</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Criteria</th><th>ECD</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
