@@ -1022,10 +1022,28 @@
     let curCat = igBase || ''; 
     let dynamicSection = '';
     
-    const l1OptsArea = ['MTB', 'SAT'];
-    const l2OptsArea = ['Check In', 'Reclaim', 'Final Sorter', 'Hot Transfer', 'Transfer Sorter', 'Breakdown', 'Tunnel', 'Main Sorter'];
-    const l3OptsArea = ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8','CH9','CH10','CH11','CH12','CL1','CL2','CL3','CL4','CL5','CL6','CL7','CL8','CL9','CL10','CL11','CL12','FS1','FS2','FS3','FS4','HTA','HTB','HTC','HTD','HTE','HTF','TS1','TS2','BR1','BR2','BR3','BR4','BR5','BR6','BR7','BR8','BR9','BR10','BR11','BR12','BR13','BR14','BR15','BR16','BR17','BR18','BR19','BR20','BR21','BR22','BR23','BR24','NN1','NN2','NN3','NN4','NN5','NN6','NN7','NN8','MS1','MS2'];
+    const L1_AREA_ALL = ['All', 'MTB', 'SAT'];
+    const L2_SUBAREA_ALL = ['All', 'Check In', 'Reclaim', 'Final Sorter', 'Hot Transfer', 'Transfer Sorter', 'Breakdown', 'Tunnel', 'Main Sorter'];
+    const L3_NO_ALL = ['All', 'BM3', 'BM4', 'BT3', 'BT6', 'CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8','CH9','CH10','CH11','CH12','CL1','CL2','CL3','CL4','CL5','CL6','CL7','CL8','CL9','CL10','CL11','CL12','FS1','FS2','FS3','FS4','HTA','HTB','HTC','HTD','HTE','HTF','TS1','TS2','BR1','BR2','BR3','BR4','BR5','BR6','BR7','BR8','BR9','BR10','BR11','BR12','BR13','BR14','BR15','BR16','BR17','BR18','BR19','BR20','BR21','BR22','BR23','BR24','NN1','NN2','NN3','NN4','NN5','NN6','NN7','NN8','MS1','MS2'];
     
+    let l1OptsArea = L1_AREA_ALL;
+    let l2OptsArea = L2_SUBAREA_ALL.filter(item => {
+        if (r.area === 'SAT' && ['Check In', 'Main Sorter', 'Reclaim'].includes(item)) return false;
+        return true;
+    });
+    
+    let l3OptsArea = ['All'];
+    const noItems = L3_NO_ALL.slice(1);
+    if (r.subArea === 'Check In') l3OptsArea.push(...noItems.filter(x => x.startsWith('CH')));
+    else if (r.subArea === 'Reclaim') l3OptsArea.push(...noItems.filter(x => x.startsWith('CL')));
+    else if (r.subArea === 'Final Sorter') l3OptsArea.push(...noItems.filter(x => x.startsWith('FS')));
+    else if (r.subArea === 'Hot Transfer') l3OptsArea.push(...noItems.filter(x => x.startsWith('HT')));
+    else if (r.subArea === 'Transfer Sorter') l3OptsArea.push(...noItems.filter(x => x.startsWith('BM') || x.startsWith('BT') || x.startsWith('TS')));
+    else if (r.subArea === 'Breakdown') l3OptsArea.push(...noItems.filter(x => x.startsWith('BR')));
+    else if (r.subArea === 'Tunnel') l3OptsArea.push(...noItems.filter(x => x.startsWith('NN')));
+    else if (r.subArea === 'Main Sorter') l3OptsArea.push(...noItems.filter(x => x.startsWith('MS')));
+    else l3OptsArea = L3_NO_ALL;
+
     const areaSection = `<div class="grid g3" style="margin-top:10px">
         ${selectField('Area', 'area', r.area, l1OptsArea)}
         ${selectField('Sub-Area', 'subArea', r.subArea, l2OptsArea)}
@@ -1200,6 +1218,10 @@
         }
         
         state.isDirty = true; setByPath(r, path, newVal);
+        
+        if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
+        if (path === 'subArea') { r.areaNo = ''; saveRecords(); render(); return; }
+        
         if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
         
         if((path === 'lineEquipment' || path === 'equipNo') && (!igBase || igBase === 'Conveyor Line')) { 
@@ -1364,7 +1386,7 @@
     ROOT.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', async () => { 
         const targetTab = b.getAttribute('data-tab');
-        if (state.tab !== 'Dashboard' && targetTab !== state.tab && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
+        if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
         state.tab = targetTab; render(); 
       });
     });
