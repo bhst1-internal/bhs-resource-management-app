@@ -18,7 +18,7 @@
   #acm-root .brand{display:flex;flex-direction:column;gap:2px}
   #acm-root .brand .k{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-sec);font-weight:700}
   #acm-root .brand .t{font-size:1.125rem;font-weight:800;color:var(--ink)}
-  #acm-root .tabs{display:flex;gap:6px;background:var(--line);padding:4px;border-radius:10px}
+  #acm-root .tabs{display:flex;gap:6px;background:var(--line);padding:4px;border-radius:10px;flex-wrap:wrap}
   #acm-root .tab-btn{border:none;background:transparent;padding:8px 14px;border-radius:8px;font-size:.875rem;font-weight:600;color:var(--text-sec);cursor:pointer;transition:all .15s}
   #acm-root .tab-btn.active{background:var(--paper);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   #acm-root .tab-btn:hover:not(.active){color:var(--ink)}
@@ -124,14 +124,14 @@
   }
   const CONF_PASS = {'Anisah':'134510','Azlan':'111306','Eylia':'131091','Fairus':'123092','Fariz':'134828','Hafizah':'134449','Khairoulnizam':'110143','Samsulnazri':'111289','Zahidah':'131530','Zulkiple':'133513'};
   const CONF_NAMES = Object.keys(CONF_PASS).sort();
-  const CATS = { opError:'Op.Error', stoppage:'Stoppage', damage:'Damage', noise:'Noise etc.', othersType1:'Others' };
-  const CATS2 = { mech:'Mech.', elec:'Elec.', it:'I.T.', operation:'Operation', othersType2:'Others' };
+  const CATS = { mech:'Mechanical', elec:'Electrical', it:'IT', operation:'Operation', others:'Others' };
   const URGENCY = { veryCritical:'Very Critical', within24hrs:'Within 24hrs', within2months:'Within 2 months', within1week:'Within 1 week' };
   const ACTION_CAT = { reset:'Reset', adjustment:'Adjustment', replace:'Replace', temporary:'Temporary', othersAction:'Others' };
   const RESULT_CAT = { testedOK:'Tested OK', modified:'Modified', pending:'Pending', temporary2:'Temporary', rectified:'Rectified', forceRun:'Force Run', kiv:'KIV' };
   const URGENCY_MS = { veryCritical: 4*3600000, within24hrs: 24*3600000, within1week: 7*86400000, within2months: 60*86400000 };
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
   const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Other'];
+  const INPUT_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
 
   function showModal(title, msg, type = 'alert', errorMode = false) {
     return new Promise(resolve => {
@@ -160,10 +160,10 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', timeOfHappening:'', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, cat2: {}, urgency:'', reasonDetail:'', monitoring: [ {d1:'',b1:'',r1:'',d2:'',b2:'',r2:''} ], spStock:'', spStockQty:'', spStockCritical:'', spCheckedBy:'', spQty:'', spLocation:'', spCheckBy:'', spRequestDate:'', spDeliveryDate:'', spLocation2:'', requestOfAction:'', actionDate: '', actDoneBy:'', actGroup:'', actStartTime:'', actEndTime:'', actDd:'', actMm:'', actYy:'', actionCat:'', actionDetail:'', history: [ {date:'',remark:''}, {date:'',remark:''}, {date:'',remark:''} ], resultCat:'', paramSpeed:'', paramTemp:'', paramCurrent:'', paramVoltage:'', resultDetail:'', parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', timeOfHappening:'', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', monitoring: [ {d1:'',b1:'',r1:'',d2:'',b2:'',r2:''} ], spStock:'', spStockQty:'', spStockCritical:'', spCheckedBy:'', spQty:'', spLocation:'', spCheckBy:'', spRequestDate:'', spDeliveryDate:'', spLocation2:'', requestOfAction:'', actionDate: '', actDoneBy:'', actGroup:'', actStartTime:'', actEndTime:'', actDd:'', actMm:'', actYy:'', actionCat:'', actionDetail:'', history: [ {date:'',remark:''}, {date:'',remark:''}, {date:'',remark:''} ], resultCat:'', paramSpeed:'', paramTemp:'', paramCurrent:'', paramVoltage:'', resultDetail:'', parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
   }
 
-  let state = { tab: 'dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
+  let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
   const checkReq = v => v != null && String(v).trim() !== '';
 
   async function loadRecords() {
@@ -246,7 +246,7 @@
       if ((sDate || eDate) && (!t || t < startTs || t >= endTs)) return false;
       if (selUrg.length && !selUrg.includes(r.urgency)) return false;
       if (selStat.length && !selStat.includes(getStatus(r))) return false;
-      if (selCat.length && !selCat.some(c => (r.cat1 && r.cat1[c]) || (r.cat2 && r.cat2[c]))) return false;
+      if (selCat.length && !selCat.some(c => (r.cat1 && r.cat1[c]))) return false;
       if (lineQ && !((r.lineEquipment||'') + '-' + (r.equipNo||'')).toLowerCase().includes(lineQ)) return false;
       if (convQ && !(r.conveyorItem || '').toLowerCase().includes(convQ)) return false;
       return true;
@@ -257,10 +257,9 @@
     activeRecs = activeRecs || state.records.filter(r => !r.isDraft);
     const open = activeRecs.filter(r => getStatus(r) !== 'done'), completed = activeRecs.filter(r => getStatus(r) === 'done');
     let resTimes = [], catCounts = {}, ratedTotal = 0, onTime = 0;
-    Object.keys(CATS).forEach(k => catCounts[CATS[k]] = 0); Object.keys(CATS2).forEach(k => catCounts[CATS2[k]] = 0);
+    Object.keys(CATS).forEach(k => catCounts[CATS[k]] = 0);
     activeRecs.forEach(r => {
       if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catCounts[CATS[k]]++; });
-      if(r.cat2) Object.keys(CATS2).forEach(k => { if(r.cat2[k]) catCounts[CATS2[k]]++; });
     });
     completed.forEach(r => {
       const t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening);
@@ -338,15 +337,19 @@
       const st = getStatus(r), urg = URGENCY[r.urgency] || '—';
       let catList = [];
       if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-      let typeList = [];
-      if(r.cat2) Object.keys(CATS2).forEach(k => { if(r.cat2[k]) typeList.push(CATS2[k]); });
-      return `<tr><td><button class="link-btn mono-font" data-act="open" data-id="${r.createdAt}" style="text-decoration:underline;padding:0;text-align:left;font-weight:700">${r.reportNo||'—'}</button></td><td class="mono-font">${fmtDate(r)}</td><td>${r.title||'<span style="color:var(--line-dark)">Untitled</span>'}</td><td>${r.lineEquipment||'—'}</td><td>${r.equipNo||'—'}</td><td>${r.conveyorItem||'—'}</td><td>${catList.length?catList.join(', '):'—'}</td><td>${typeList.length?typeList.join(', '):'—'}</td><td>${urg}</td><td><span class="status-chip ${st==='done'?'chip-done':st==='progress'?'chip-progress':'chip-open'}">${st==='done'?'Completed':st==='progress'?'In progress':'Open'}</span></td></tr>`;
+      return `<tr><td><button class="link-btn mono-font" data-act="open" data-id="${r.createdAt}" style="text-decoration:underline;padding:0;text-align:left;font-weight:700">${r.reportNo||'—'}</button></td><td class="mono-font">${fmtDate(r)}</td><td>${r.title||'<span style="color:var(--line-dark)">Untitled</span>'}</td><td>${r.lineEquipment||'—'}</td><td>${r.equipNo||'—'}</td><td>${r.conveyorItem||'—'}</td><td>${catList.length?catList.join(', '):'—'}</td><td>${urg}</td><td><span class="status-chip ${st==='done'?'chip-done':st==='progress'?'chip-progress':'chip-open'}">${st==='done'?'Completed':st==='progress'?'In progress':'Open'}</span></td></tr>`;
     }).join('');
     
     const tContainer = document.getElementById('dash-table-container');
-    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date</th><th>Title</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Type</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date</th><th>Title</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
 
-    document.querySelectorAll('[data-act="open"]').forEach(btn => btn.addEventListener('click', () => { state.activeId = String(btn.getAttribute('data-id')); state.tab = 'input'; render(); }));
+    document.querySelectorAll('[data-act="open"]').forEach(btn => btn.addEventListener('click', () => { 
+        const id = String(btn.getAttribute('data-id'));
+        state.activeId = id; 
+        const rec = state.records.find(x => String(x.createdAt) === id);
+        if (rec) state.tab = rec.maintenanceType || 'Manpower Management';
+        render(); 
+    }));
 
     if (timelineChart) {
       const nowTs = new Date().setHours(23, 59, 59, 999), timelineFiltered = filtered.slice().sort((a,b) => b.createdAt - a.createdAt);
@@ -436,31 +439,22 @@
       }
     }
     if (categoryChart) {
-      let cat1CountsArr = [], cat2CountsArr = [];
-      const selCatNames = Array.from(document.querySelectorAll('input[name="dash-cat"]:checked')).map(cb => CATS[cb.value] || CATS2[cb.value]).filter(Boolean);
+      let cat1CountsArr = [];
+      const selCatNames = Array.from(document.querySelectorAll('input[name="dash-cat"]:checked')).map(cb => CATS[cb.value]).filter(Boolean);
       
       Object.entries(CATS).forEach(([k, name]) => {
           let count = 0;
           filtered.forEach(r => { if(r.cat1 && r.cat1[k]) count++; });
           if(selCatNames.length === 0 || selCatNames.includes(name)) cat1CountsArr.push({name: name, count: count});
       });
-      Object.entries(CATS2).forEach(([k, name]) => {
-          let count = 0;
-          filtered.forEach(r => { if(r.cat2 && r.cat2[k]) count++; });
-          if(selCatNames.length === 0 || selCatNames.includes(name)) cat2CountsArr.push({name: name, count: count});
-      });
       
       cat1CountsArr.sort((a,b) => b.count - a.count);
-      cat2CountsArr.sort((a,b) => b.count - a.count);
       
-      const mergedLabels = [...cat1CountsArr.map(x => x.name), ...cat2CountsArr.map(x => x.name)];
-      const mergedData = [...cat1CountsArr.map(x => x.count), ...cat2CountsArr.map(x => x.count)];
-      
-      categoryChart.data.labels = mergedLabels;
-      categoryChart.data.datasets[0].data = mergedData;
-      categoryChart.data.datasets[0].backgroundColor = mergedLabels.map((_, i) => i < cat1CountsArr.length ? 'rgba(37, 99, 235, 0.45)' : 'rgba(16, 185, 129, 0.45)');
-      categoryChart.data.datasets[0].borderColor = mergedLabels.map((_, i) => i < cat1CountsArr.length ? 'rgba(37, 99, 235, 1)' : 'rgba(16, 185, 129, 1)');
-      categoryChart.options.plugins.verticalLine = { index: cat1CountsArr.length };
+      categoryChart.data.labels = cat1CountsArr.map(x => x.name);
+      categoryChart.data.datasets[0].data = cat1CountsArr.map(x => x.count);
+      categoryChart.data.datasets[0].backgroundColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 0.45)');
+      categoryChart.data.datasets[0].borderColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 1)');
+      categoryChart.options.plugins.verticalLine = false;
       categoryChart.update();
     }
     if (urgencyChart) {
@@ -606,7 +600,7 @@
               plugins: {
                   customCanvasBackgroundColor: { color: '#ffffff' }, 
                   legend: { display:false }, 
-                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); if(r.cat2)Object.keys(CATS2).forEach(k=>{if(r.cat2[k])cL.push(CATS2[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; let rS = '—'; if(r.actStartTime && r.actEndTime) { let sP = r.actStartTime.split(':'), eP = r.actEndTime.split(':'); if(sP.length>1 && eP.length>1) { let sM = parseInt(sP[0])*60+parseInt(sP[1]), eM = parseInt(eP[0])*60+parseInt(eP[1]); if(eM < sM) eM += 1440; let df = eM - sM; rS = String(Math.floor(df/60)).padStart(2,'0')+':'+String(df%60).padStart(2,'0'); } } return [`Date: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category/Type: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Rectification Time: ${rS}`, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
+                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; let rS = '—'; if(r.actStartTime && r.actEndTime) { let sP = r.actStartTime.split(':'), eP = r.actEndTime.split(':'); if(sP.length>1 && eP.length>1) { let sM = parseInt(sP[0])*60+parseInt(sP[1]), eM = parseInt(eP[0])*60+parseInt(eP[1]); if(eM < sM) eM += 1440; let df = eM - sM; rS = String(Math.floor(df/60)).padStart(2,'0')+':'+String(df%60).padStart(2,'0'); } } return [`Date: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Rectification Time: ${rS}`, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
               },
               scales: { 
                   x: { 
@@ -641,15 +635,15 @@
     for (let l in EQUIP_DB) for (let n in EQUIP_DB[l]) { allLinesNos.push(l + '-' + n); allConveyors.add(EQUIP_DB[l][n]); }
     allConveyors.add('OTHERS'); allConveyors = Array.from(allConveyors).sort(); allLinesNos.sort();
 
-    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div><div class="grid g4" id="dash-filters"><label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label><label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label><label class="f">Urgency<div class="dd-wrapper" id="dd-urgency-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(URGENCY).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-urgency" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Status<div class="dd-wrapper" id="dd-status-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><label class="chk"><input type="checkbox" name="dash-status" value="open"/> <span>Open</span></label><label class="chk"><input type="checkbox" name="dash-status" value="progress"/> <span>In progress</span></label><label class="chk"><input type="checkbox" name="dash-status" value="done"/> <span>Completed</span></label></div></div></label><label class="f">Category/Type<div class="dd-wrapper" id="dd-cat-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><div style="font-size:.65rem;font-weight:800;color:var(--text-sec)">Category</div>${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}<div style="font-size:.65rem;font-weight:800;color:var(--text-sec);margin-top:4px">Type of Error</div>${Object.entries(CATS2).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Line/Equipment - No.<input type="text" id="dash-line" list="dl-lines" placeholder="e.g. BM1-04" autocomplete="off"/><datalist id="dl-lines">${allLinesNos.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label><label class="f">Conveyor/Item<input type="text" id="dash-conveyor" list="dl-conv" placeholder="e.g. TRANSFER CONVEYOR" autocomplete="off"/><datalist id="dl-conv">${allConveyors.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label></div></div><div class="kpi-grid" id="dash-kpi-grid"></div><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">ACM Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
+    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div><div class="grid g4" id="dash-filters"><label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label><label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label><label class="f">Urgency<div class="dd-wrapper" id="dd-urgency-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(URGENCY).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-urgency" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Status<div class="dd-wrapper" id="dd-status-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><label class="chk"><input type="checkbox" name="dash-status" value="open"/> <span>Open</span></label><label class="chk"><input type="checkbox" name="dash-status" value="progress"/> <span>In progress</span></label><label class="chk"><input type="checkbox" name="dash-status" value="done"/> <span>Completed</span></label></div></div></label><label class="f">Category<div class="dd-wrapper" id="dd-cat-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Line/Equipment - No.<input type="text" id="dash-line" list="dl-lines" placeholder="e.g. BM1-04" autocomplete="off"/><datalist id="dl-lines">${allLinesNos.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label><label class="f">Conveyor/Item<input type="text" id="dash-conveyor" list="dl-conv" placeholder="e.g. TRANSFER CONVEYOR" autocomplete="off"/><datalist id="dl-conv">${allConveyors.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label></div></div><div class="kpi-grid" id="dash-kpi-grid"></div><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">ACM Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
     
     <div class="charts-grid">
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h3 style="margin:0">Category &amp; Type Overview</h3>
+          <h3 style="margin:0">Category Overview</h3>
           <button class="export-chart-btn" id="save-cat-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
         </div>
-        <div class="hint">Frequency of faults by category and type across filtered records</div>
+        <div class="hint">Frequency of faults by category across filtered records</div>
         <div style="height:230px;position:relative;width:100%"><canvas id="acm-category-chart"></canvas></div>
       </div>
       <div class="panel">
@@ -706,12 +700,11 @@
     document.getElementById('dash-export-btn').addEventListener('click', () => {
       const filteredForExport = getFilteredDashboardRecords().sort((a,b)=>b.createdAt-a.createdAt);
       if(filteredForExport.length === 0) return showModal("Export Failed", "No record to export based on current filters.", "alert", true);
-      const csvRows = [['Record No.', 'Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Type', 'Urgency', 'Status']];
+      const csvRows = [['Record No.', 'Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'Status']];
       filteredForExport.forEach(r => {
         const st = getStatus(r), urg = URGENCY[r.urgency] || '';
         let catList = []; if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-        let typeList = []; if(r.cat2) Object.keys(CATS2).forEach(k => { if(r.cat2[k]) typeList.push(CATS2[k]); });
-        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${typeList.join(', ')}"`, `"${urg}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
+        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
       });
       const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e=>e.join(",")).join("\n")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
@@ -879,36 +872,6 @@
 
       const customBgPlugin = { id:'customCanvasBackgroundColor', beforeDraw:(c, a, o)=>{ const ctx=c.ctx; ctx.save(); ctx.globalCompositeOperation='destination-over'; ctx.fillStyle=o.color||'#ffffff'; ctx.fillRect(0,0,c.width,c.height); ctx.restore(); } };
 
-      const verticalLinePlugin = {
-        id: 'verticalLine',
-        afterDraw: chart => {
-          const xIndex = chart.config.options.plugins?.verticalLine?.index;
-          if (xIndex === undefined || xIndex <= 0 || xIndex >= chart.data.labels.length) return;
-          const ctx = chart.ctx;
-          const xAxis = chart.scales.x;
-          const yAxis = chart.scales.y;
-          const leftTick = xAxis.getPixelForTick(xIndex - 1);
-          const rightTick = xAxis.getPixelForTick(xIndex);
-          if (leftTick === undefined || rightTick === undefined) return;
-          const xPos = (leftTick + rightTick) / 2;
-          ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(xPos, yAxis.top);
-          ctx.lineTo(xPos, yAxis.bottom);
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 5]);
-          ctx.strokeStyle = '#9ca3af';
-          ctx.stroke();
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillStyle = '#6b7280';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillText('CATEGORY', (xAxis.left + xPos) / 2, yAxis.top + 5);
-          ctx.fillText('TYPE', (xPos + xAxis.right) / 2, yAxis.top + 5);
-          ctx.restore();
-        }
-      };
-
       const tlCtx = document.getElementById('acm-timeline-chart'); 
       if(tlCtx) {
           if (timelineChart) timelineChart.destroy();
@@ -920,7 +883,7 @@
         if(categoryChart) categoryChart.destroy();
         categoryChart = new Chart(catCtx, { 
           type: 'bar', 
-          plugins:[customBgPlugin, verticalLinePlugin], 
+          plugins:[customBgPlugin], 
           data: { labels:[], datasets:[{label:'Occurrences', data:[], backgroundColor:[], borderColor:[], borderWidth:1, borderRadius:4}] }, 
           options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8}}, scales:{y:{beginAtZero:true, title:{display:true, text:'Total Memo', font:{size:12, weight:'bold'}}, ticks:{stepSize:1, font:{size:10}}}, x:{ticks:{font:{size:10}, maxRotation:0, minRotation:0, display:true}}} } 
         });
@@ -1012,21 +975,36 @@
 
     if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) container.querySelector('[data-path="reasonDetail"]')?.classList.add('err-highlight');
     if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase() === 'OTHER')) container.querySelectorAll('[data-calc-group="issuedGroup"]').forEach(el=>el.classList.add('err-highlight'));
-    if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k])) || !(r.cat2 && Object.keys(CATS2).some(k=>r.cat2[k]))) container.querySelector('#sec-category')?.classList.add('err-sec');
+    if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k]))) container.querySelector('#sec-category')?.classList.add('err-sec');
     if(!r.urgency) container.querySelector('#sec-urgency')?.classList.add('err-sec');
   }
 
   function getActive() { return state.activeId ? (state.records.find(r => String(r.createdAt) === String(state.activeId)) || null) : null; }
 
-  function renderInput(container) {
+  function renderInput(container, currentTab) {
     let r = getActive();
-    if (!r) { r = blankRecord(); r.reportNo = getNextReportNo(); state.records.unshift(r); state.activeId = r.createdAt; state.isDirty = false; }
+    
+    if (r && r.maintenanceType !== currentTab && !r.isDraft) {
+        r = state.records.find(x => x.maintenanceType === currentTab && !x.isDraft) || null;
+        if (r) state.activeId = r.createdAt;
+    }
+    
+    if (!r) { 
+        r = blankRecord(); 
+        r.reportNo = getNextReportNo(); 
+        r.maintenanceType = currentTab;
+        state.records.unshift(r); 
+        state.activeId = r.createdAt; 
+        state.isDirty = false; 
+    }
+    
     if (!state.isDirty) state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
     r.monitoring = ensureRows(r.monitoring, 2, () => ({d1:'',b1:'',r1:'',d2:'',b2:'',r2:''}));
     r.history = ensureRows(r.history, 3, () => ({date:'',remark:''}));
     r.parts = ensureRows(r.parts, 9, () => ({item:'',spec:'',part:'',qty:'',dismantle:'',sap:''}));
 
-    const options = state.records.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
+    const tabRecords = state.records.filter(x => x.maintenanceType === currentTab || (x.isDraft && x.maintenanceType === currentTab));
+    const options = tabRecords.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
     
     let igBase = r.issuedGroup||'', igOther = ''; 
     if(igBase.toUpperCase().startsWith('OTHER:')){ igBase = 'Other'; igOther = (r.issuedGroup||'').substring(6).trim(); } 
@@ -1084,13 +1062,13 @@
         </div>`;
     }
 
-    container.innerHTML = `<div class="form-shell"><div class="form-toolbar"><div class="rec-select"><span style="font-weight:700">Record No.:</span><select class="recpick" id="acm-recpick">${options}</select></div><div class="btn-row"><button class="btn btn-ghost" id="acm-new-btn">✚ Add New Record</button><button class="btn btn-danger" id="acm-del-btn">Delete ✘</button><button class="btn btn-primary" id="acm-submit-btn" style="background:var(--ok)">Submit ✔</button></div></div><div class="sec"><div class="sec-title">Classification</div><div class="grid g3">${selectField('Classification','maintenanceType',r.maintenanceType,['Manpower Management','Contract Management','Cost & Budget Management','Vendor Management'])}${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}${field('Time','timeOfHappening',r.timeOfHappening,'time')}</div><div class="grid g3" style="margin-top:10px">${field('Date','happeningDate',r.happeningDate,'date')}${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}${groupField('Category','issuedGroup',igBase,igOther,true)}</div></div><div class="sec"><div class="sec-title">Title &amp; Category</div><div class="grid g1">${field('Title','title',r.title)}</div>${areaSection}${dynamicSection}</div><div class="sec" id="sec-category"><div class="sec-title">Category &amp; Type of Error</div><div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div><div class="check-row" style="margin-top:8px">${Object.entries(CATS2).map(([k,l])=>checkbox(l,(r.cat2||{})[k],'cat2.'+k)).join('')}</div></div><div class="sec" id="sec-urgency"><div class="sec-title">Degree of Urgency</div><div class="radio-row">${Object.entries(URGENCY).map(([k,l])=>radio('urgency',l,k,r.urgency===k,'urgency')).join('')}</div></div><div class="sec"><div class="sec-title">Reason / Detail</div>${field('Describe the reason and detail of the fault','reasonDetail',r.reasonDetail,'textarea')}</div><div class="sec"><div class="sec-title">Monitoring Status (Progress)</div><table class="editrows"><thead><tr><th>Insp. Date</th><th>By</th><th>Result</th><th>Insp. Date</th><th>By</th><th>Result</th></tr></thead><tbody>${(r.monitoring||[]).map((m,i)=>`<tr><td><input type="date" data-path="monitoring.${i}.d1" value="${m.d1||''}"/></td><td><input type="text" data-path="monitoring.${i}.b1" value="${m.b1||''}"/></td><td><input type="text" data-path="monitoring.${i}.r1" value="${m.r1||''}"/></td><td><input type="date" data-path="monitoring.${i}.d2" value="${m.d2||''}"/></td><td><input type="text" data-path="monitoring.${i}.b2" value="${m.b2||''}"/></td><td><input type="text" data-path="monitoring.${i}.r2" value="${m.r2||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Spare Part Status</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin-bottom:6px">Row 1</div><div class="grid g5">${field('Stock:','spStock',r.spStock)}${field('Stock Qty','spStockQty',r.spStockQty)}${field('Stock: Critical','spStockCritical',r.spStockCritical)}${field('Checked by','spCheckedBy',r.spCheckedBy)}${field('Qty','spQty',r.spQty)}</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin:10px 0 6px">Row 2</div><div class="grid g5">${field('Location','spLocation',r.spLocation)}${field('Check by','spCheckBy',r.spCheckBy)}${field('Request date','spRequestDate',r.spRequestDate,'date')}${field('Delivery date','spDeliveryDate',r.spDeliveryDate,'date')}${field('Location (2)','spLocation2',r.spLocation2)}</div></div><div class="sec"><div class="sec-title">Request of Action</div>${field('Request of action','requestOfAction',r.requestOfAction,'textarea')}</div><div class="sec"><div class="sec-title">Action</div><div class="grid g3">${field('Date','actionDate',r.actionDate,'date')}${field('Done By','actDoneBy',r.actDoneBy)}${groupField('Group','actGroup',agBase,agVendor,false)}</div><div class="grid g2" style="margin-top:10px">${field('Start time','actStartTime',r.actStartTime,'time')}${field('End time','actEndTime',r.actEndTime,'time')}</div><div style="margin-top:10px"><div class="sec-title" style="font-size:.65rem">Category</div><div class="radio-row">${Object.entries(ACTION_CAT).map(([k,l])=>radio('actionCat',l,k,r.actionCat===k,'actionCat')).join('')}</div></div><div style="margin-top:10px">${field('Detail','actionDetail',r.actionDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">History (Last 3 Changing Dates)</div><table class="editrows"><thead><tr><th>#</th><th>Date</th><th>Remark</th></tr></thead><tbody>${(r.history||[]).map((h,i)=>`<tr><td style="width:30px">${i+1})</td><td><input type="date" data-path="history.${i}.date" value="${h.date||''}"/></td><td><input type="text" data-path="history.${i}.remark" value="${h.remark||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Result</div><div class="radio-row">${Object.entries(RESULT_CAT).map(([k,l])=>radio('resultCat',l,k,r.resultCat===k,'resultCat')).join('')}</div><div class="grid g4" style="margin-top:10px">${field('Speed (m/min)','paramSpeed',r.paramSpeed)}${field('Temp (°C)','paramTemp',r.paramTemp)}${field('Current (A)','paramCurrent',r.paramCurrent)}${field('Voltage (V)','paramVoltage',r.paramVoltage)}</div><div style="margin-top:10px">${field('Detail / Status','resultDetail',r.resultDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">Parts Record</div><table class="editrows"><thead><tr><th>No.</th><th>Item/Equipment name</th><th>Specification</th><th>Part</th><th>Qty</th><th>Dismantle part status</th><th>SAP No / Others</th></tr></thead><tbody>${(r.parts||[]).map((p,i)=>`<tr><td style="width:30px">${i+1}</td><td><input type="text" data-path="parts.${i}.item" value="${p.item||''}"/></td><td><input type="text" data-path="parts.${i}.spec" value="${p.spec||''}"/></td><td><input type="text" data-path="parts.${i}.part" value="${p.part||''}"/></td><td><input type="text" data-path="parts.${i}.qty" value="${p.qty||''}"/></td><td><input type="text" data-path="parts.${i}.dismantle" value="${p.dismantle||''}"/></td><td><input type="text" data-path="parts.${i}.sap" value="${p.sap||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Completion Checklist</div><div class="check-row">${checkbox('Create Notification',(r.flags||{}).createNotification,'flags.createNotification')}${checkbox('Create Work Order',(r.flags||{}).createWorkOrder,'flags.createWorkOrder')}${checkbox('Release Work Order',(r.flags||{}).releaseWorkOrder,'flags.releaseWorkOrder')}${checkbox('GMPS',(r.flags||{}).gmps,'flags.gmps')}</div><div class="check-row" style="margin-top:8px">${checkbox('Time Confirmation',(r.flags||{}).timeConfirmation,'flags.timeConfirmation')}${checkbox('TECO',(r.flags||{}).teco,'flags.teco')}${checkbox('Business Completion',(r.flags||{}).businessCompletion,'flags.businessCompletion')}</div></div><div class="sec"><div class="sec-title">Sign-off</div><div class="grid g3">${field('Done By (TECH)','doneByName',r.doneByName)}${field('Check By (TO/SP)','checkByName',r.checkByName)}${selectField('Confirmed By (TE/E/SE)','confirmedByName',r.confirmedByName,CONF_NAMES)}</div></div></div>`;
+    container.innerHTML = `<div class="form-shell"><div class="form-toolbar"><div class="rec-select"><span style="font-weight:700">Record No.:</span><select class="recpick" id="acm-recpick">${options}</select></div><div class="btn-row"><button class="btn btn-ghost" id="acm-new-btn">✚ Add New Record</button><button class="btn btn-danger" id="acm-del-btn">Delete ✘</button><button class="btn btn-primary" id="acm-submit-btn" style="background:var(--ok)">Submit ✔</button></div></div><div class="sec"><div class="sec-title">Classification</div><div class="grid g3">${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}${field('Time','timeOfHappening',r.timeOfHappening,'time')}</div><div class="grid g3" style="margin-top:10px">${field('Date','happeningDate',r.happeningDate,'date')}${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}${groupField('Criteria','issuedGroup',igBase,igOther,true)}</div></div><div class="sec"><div class="sec-title">Title &amp; Criteria Details</div><div class="grid g1">${field('Title','title',r.title)}</div>${areaSection}${dynamicSection}</div><div class="sec" id="sec-category"><div class="sec-title">Category</div><div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div></div><div class="sec" id="sec-urgency"><div class="sec-title">Degree of Urgency</div><div class="radio-row">${Object.entries(URGENCY).map(([k,l])=>radio('urgency',l,k,r.urgency===k,'urgency')).join('')}</div></div><div class="sec"><div class="sec-title">Reason / Detail</div>${field('Describe the reason and detail of the fault','reasonDetail',r.reasonDetail,'textarea')}</div><div class="sec"><div class="sec-title">Monitoring Status (Progress)</div><table class="editrows"><thead><tr><th>Insp. Date</th><th>By</th><th>Result</th><th>Insp. Date</th><th>By</th><th>Result</th></tr></thead><tbody>${(r.monitoring||[]).map((m,i)=>`<tr><td><input type="date" data-path="monitoring.${i}.d1" value="${m.d1||''}"/></td><td><input type="text" data-path="monitoring.${i}.b1" value="${m.b1||''}"/></td><td><input type="text" data-path="monitoring.${i}.r1" value="${m.r1||''}"/></td><td><input type="date" data-path="monitoring.${i}.d2" value="${m.d2||''}"/></td><td><input type="text" data-path="monitoring.${i}.b2" value="${m.b2||''}"/></td><td><input type="text" data-path="monitoring.${i}.r2" value="${m.r2||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Spare Part Status</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin-bottom:6px">Row 1</div><div class="grid g5">${field('Stock:','spStock',r.spStock)}${field('Stock Qty','spStockQty',r.spStockQty)}${field('Stock: Critical','spStockCritical',r.spStockCritical)}${field('Checked by','spCheckedBy',r.spCheckedBy)}${field('Qty','spQty',r.spQty)}</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin:10px 0 6px">Row 2</div><div class="grid g5">${field('Location','spLocation',r.spLocation)}${field('Check by','spCheckBy',r.spCheckBy)}${field('Request date','spRequestDate',r.spRequestDate,'date')}${field('Delivery date','spDeliveryDate',r.spDeliveryDate,'date')}${field('Location (2)','spLocation2',r.spLocation2)}</div></div><div class="sec"><div class="sec-title">Request of Action</div>${field('Request of action','requestOfAction',r.requestOfAction,'textarea')}</div><div class="sec"><div class="sec-title">Action</div><div class="grid g3">${field('Date','actionDate',r.actionDate,'date')}${field('Done By','actDoneBy',r.actDoneBy)}${groupField('Group','actGroup',agBase,agVendor,false)}</div><div class="grid g2" style="margin-top:10px">${field('Start time','actStartTime',r.actStartTime,'time')}${field('End time','actEndTime',r.actEndTime,'time')}</div><div style="margin-top:10px"><div class="sec-title" style="font-size:.65rem">Category</div><div class="radio-row">${Object.entries(ACTION_CAT).map(([k,l])=>radio('actionCat',l,k,r.actionCat===k,'actionCat')).join('')}</div></div><div style="margin-top:10px">${field('Detail','actionDetail',r.actionDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">History (Last 3 Changing Dates)</div><table class="editrows"><thead><tr><th>#</th><th>Date</th><th>Remark</th></tr></thead><tbody>${(r.history||[]).map((h,i)=>`<tr><td style="width:30px">${i+1})</td><td><input type="date" data-path="history.${i}.date" value="${h.date||''}"/></td><td><input type="text" data-path="history.${i}.remark" value="${h.remark||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Result</div><div class="radio-row">${Object.entries(RESULT_CAT).map(([k,l])=>radio('resultCat',l,k,r.resultCat===k,'resultCat')).join('')}</div><div class="grid g4" style="margin-top:10px">${field('Speed (m/min)','paramSpeed',r.paramSpeed)}${field('Temp (°C)','paramTemp',r.paramTemp)}${field('Current (A)','paramCurrent',r.paramCurrent)}${field('Voltage (V)','paramVoltage',r.paramVoltage)}</div><div style="margin-top:10px">${field('Detail / Status','resultDetail',r.resultDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">Parts Record</div><table class="editrows"><thead><tr><th>No.</th><th>Item/Equipment name</th><th>Specification</th><th>Part</th><th>Qty</th><th>Dismantle part status</th><th>SAP No / Others</th></tr></thead><tbody>${(r.parts||[]).map((p,i)=>`<tr><td style="width:30px">${i+1}</td><td><input type="text" data-path="parts.${i}.item" value="${p.item||''}"/></td><td><input type="text" data-path="parts.${i}.spec" value="${p.spec||''}"/></td><td><input type="text" data-path="parts.${i}.part" value="${p.part||''}"/></td><td><input type="text" data-path="parts.${i}.qty" value="${p.qty||''}"/></td><td><input type="text" data-path="parts.${i}.dismantle" value="${p.dismantle||''}"/></td><td><input type="text" data-path="parts.${i}.sap" value="${p.sap||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Completion Checklist</div><div class="check-row">${checkbox('Create Notification',(r.flags||{}).createNotification,'flags.createNotification')}${checkbox('Create Work Order',(r.flags||{}).createWorkOrder,'flags.createWorkOrder')}${checkbox('Release Work Order',(r.flags||{}).releaseWorkOrder,'flags.releaseWorkOrder')}${checkbox('GMPS',(r.flags||{}).gmps,'flags.gmps')}</div><div class="check-row" style="margin-top:8px">${checkbox('Time Confirmation',(r.flags||{}).timeConfirmation,'flags.timeConfirmation')}${checkbox('TECO',(r.flags||{}).teco,'flags.teco')}${checkbox('Business Completion',(r.flags||{}).businessCompletion,'flags.businessCompletion')}</div></div><div class="sec"><div class="sec-title">Sign-off</div><div class="grid g3">${field('Done By (TECH)','doneByName',r.doneByName)}${field('Check By (TO/SP)','checkByName',r.checkByName)}${selectField('Confirmed By (TE/E/SE)','confirmedByName',r.confirmedByName,CONF_NAMES)}</div></div></div>`;
 
     updateHighlights(container, r);
     const wrapAction = async (cb) => { if(state.isDirty){ const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if(!discard) return false; revertActiveRecord(); } return true; };
 
     container.querySelector('#acm-recpick').addEventListener('change', async (e) => { if(await wrapAction()){ state.showErrors = false; state.activeId = String(e.target.value); state.isDirty = false; render(); } else e.target.value = state.activeId; });
-    container.querySelector('#acm-new-btn').addEventListener('click', async () => { if(await wrapAction()){ await showModal("Notice", "Please enter accurate INPUT for records", "alert"); const nr = blankRecord(); nr.reportNo = getNextReportNo(); state.records.unshift(nr); state.activeId = nr.createdAt; state.showErrors = false; state.isDirty = false; saveRecords(); render(); } });
+    container.querySelector('#acm-new-btn').addEventListener('click', async () => { if(await wrapAction()){ await showModal("Notice", "Please enter accurate INPUT for records", "alert"); const nr = blankRecord(); nr.reportNo = getNextReportNo(); nr.maintenanceType = currentTab; state.records.unshift(nr); state.activeId = nr.createdAt; state.showErrors = false; state.isDirty = false; saveRecords(); render(); } });
     container.querySelector('#acm-del-btn').addEventListener('click', async () => {
       if(!await showModal("Confirm Deletion", "Delete this record? This cannot be undone.", "confirm")) return;
       const pass = await showModal("Authorization", "Password required to delete this record:", "prompt");
@@ -1104,7 +1082,7 @@
       state.showErrors = true; let errs = [];
       if(!checkReq(r.happeningDate)) errs.push("[Classification] Date");
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
-      if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Category (Include Specify if Other)");
+      if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
       if(!checkReq(r.maintenanceType)) errs.push("[Classification] Classification");
       if(!checkReq(r.timeOfHappening)) errs.push("[Classification] Time");
@@ -1112,10 +1090,10 @@
       let needsEquipNo = igBase !== 'Other';
       let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase || 'Conveyor Line');
       if(!checkReq(r.title) || !checkReq(r.area) || !checkReq(r.subArea) || !checkReq(r.areaNo) || !checkReq(r.lineEquipment) || (needsEquipNo && !checkReq(r.equipNo)) || (needsConvItem && !checkReq(r.conveyorItem))) {
-         errs.push("[Title & Category] All required fields must be filled");
+         errs.push("[Title & Criteria Details] All required fields must be filled");
       }
 
-      if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k])) || !(r.cat2 && Object.keys(CATS2).some(k=>r.cat2[k]))) errs.push("[Category & Type of Error] Select at least one category and one type");
+      if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k]))) errs.push("[Category] Select at least one category");
       if(!r.urgency) errs.push("[Degree of Urgency] Please select one");
       if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) errs.push("[Reason / Detail] Please write at least 2 words");
       updateHighlights(container, r);
@@ -1158,6 +1136,14 @@
         const pwd = await showModal("Authorization", `Enter 6-digit pin for ${newVal}:`, "prompt");
         if(pwd !== CONF_PASS[newVal]) { await showModal("Error", "Incorrect pin. Signature reversed.", "alert", true); el.value = r.confirmedByName || ''; return; }
       }
+      
+      if (path === 'maintenanceType') {
+          state.tab = newVal;
+          saveRecords();
+          render();
+          return;
+      }
+      
       state.isDirty = true; setByPath(r, path, newVal);
       if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
       
@@ -1173,18 +1159,18 @@
   function setByPath(obj, path, value) { const parts = path.split('.'); let cur = obj; for (let i = 0; i < parts.length - 1; i++) { cur = cur[isFinite(parts[i]) ? Number(parts[i]) : parts[i]]; } cur[parts[parts.length - 1]] = value; }
 
   function render() {
-    ROOT.innerHTML = `<div class="wrap"><div class="topbar"><div class="brand"><div class="k">KLIA - Baggage Handling System T1</div><div class="t">BHS Maintenance : Resource Management Monitoring</div></div><div class="tabs"><button class="tab-btn ${state.tab==='dashboard'?'active':''}" data-tab="dashboard">Dashboard</button><button class="tab-btn ${state.tab==='input'?'active':''}" data-tab="input">Record Input</button></div></div><div id="acm-content"></div></div>`;
+    ROOT.innerHTML = `<div class="wrap"><div class="topbar"><div class="brand"><div class="k">KLIA - Baggage Handling System T1</div><div class="t">BHS Maintenance : Resource Management Monitoring</div></div><div class="tabs"><button class="tab-btn ${state.tab==='Dashboard'?'active':''}" data-tab="Dashboard">Dashboard</button>${INPUT_TABS.map(t => `<button class="tab-btn ${state.tab===t?'active':''}" data-tab="${t}">${t}</button>`).join('')}</div></div><div id="acm-content"></div></div>`;
     ROOT.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', async () => { 
         const targetTab = b.getAttribute('data-tab');
-        if (state.tab === 'input' && targetTab !== 'input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
+        if (state.tab !== 'Dashboard' && targetTab !== state.tab && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
         state.tab = targetTab; render(); 
       });
     });
     const content = document.getElementById('acm-content');
     if (!state.loaded) { content.innerHTML = `<div class="empty-state">Loading records…</div>`; return; }
-    if (state.tab === 'dashboard') renderDashboard(content);
-    else if (state.tab === 'input') renderInput(content);
+    if (state.tab === 'Dashboard') renderDashboard(content);
+    else if (INPUT_TABS.includes(state.tab)) renderInput(content, state.tab);
   }
 
   render();
