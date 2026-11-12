@@ -152,28 +152,43 @@
       if(!overlay){
         overlay = document.createElement('div');
         overlay.id = 'acm-modal-overlay';
-        overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="password" id="acm-modal-input" placeholder="Enter password..." autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
+        overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="text" id="acm-modal-input" placeholder="" autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
       }
       if(overlay.parentNode !== ROOT) ROOT.appendChild(overlay);
       const titleEl = overlay.querySelector('#acm-modal-title'), msgEl = overlay.querySelector('#acm-modal-msg'), inputEl = overlay.querySelector('#acm-modal-input'), actionsEl = overlay.querySelector('#acm-modal-actions');
-      titleEl.textContent = title; msgEl.textContent = msg; inputEl.style.display = type === 'prompt' ? 'block' : 'none'; inputEl.value = ''; actionsEl.innerHTML = '';
+      titleEl.textContent = title; msgEl.textContent = msg; 
+      
+      if(type === 'prompt') {
+          inputEl.type = 'password';
+          inputEl.placeholder = 'Enter password...';
+          inputEl.style.display = 'block';
+      } else if (type === 'prompt-date') {
+          inputEl.type = 'date';
+          inputEl.placeholder = '';
+          inputEl.style.display = 'block';
+      } else {
+          inputEl.style.display = 'none';
+      }
+      
+      inputEl.value = ''; actionsEl.innerHTML = '';
       function close() { overlay.classList.remove('active'); }
       const createBtn = (cls, text, cb) => { const b = document.createElement('button'); b.className = cls; b.textContent = text; b.onclick = () => { close(); cb(); }; return b; };
+      
       if(type === 'alert') actionsEl.appendChild(createBtn(errorMode ? 'btn btn-danger' : 'btn btn-primary', 'OK', () => resolve(true)));
       else if(type === 'confirm'){ actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false))); actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Delete', () => resolve(true))); }
-      else if(type === 'prompt'){
+      else if(type === 'prompt' || type === 'prompt-date'){
         actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
         const handleSub = () => { close(); resolve(inputEl.value); };
         const ob = createBtn('btn btn-primary', 'Confirm', handleSub); actionsEl.appendChild(ob);
         inputEl.onkeydown = e => { if(e.key === 'Enter') handleSub(); };
       }
       else if(type === 'unsaved'){ actionsEl.appendChild(createBtn('btn btn-primary', 'Cancel & Keep Editing', () => resolve(false))); actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Discard Data', () => resolve(true))); }
-      void overlay.offsetWidth; overlay.classList.add('active'); if(type === 'prompt') setTimeout(() => inputEl.focus(), 50);
+      void overlay.offsetWidth; overlay.classList.add('active'); if(type === 'prompt' || type === 'prompt-date') setTimeout(() => inputEl.focus(), 50);
     });
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})) };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: 'Contract Management', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [] };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -204,6 +219,8 @@
         if (!g.vendorSla || !Array.isArray(g.vendorSla)) {
             g.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
         }
+        
+        if (!g.vendorMonitoring) g.vendorMonitoring = [];
 
         validData.push(g);
       });
@@ -1139,18 +1156,6 @@
                 ${field('Expected Completion Date (ECD)', 'ecd', r.ecd, 'date')}
             </div>
         </div>
-        
-        <div class="sec" id="sec-contract-dates">
-            <div class="sec-title">Contract Start - End Date</div>
-            <div class="radio-row">
-                ${['6 months', '12 months', '18 months', '24 months'].map(opt => radio('contractDuration', opt, opt, r.contractDuration === opt, 'contractDuration')).join('')}
-            </div>
-            <div class="grid g2" style="margin-top:12px">
-                ${field('Start Date', 'startDate', r.startDate, 'date')}
-                ${field('End Date', 'endDate', r.endDate, 'date')}
-            </div>
-        </div>
-
         <div class="sec">
             <div class="sec-title">Detail Description</div>
             ${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}
@@ -1242,30 +1247,16 @@
 
         state.isDirty = true; setByPath(r, path, newVal);
         
-        if (['happeningDate', 'urgency', 'ecd', 'startDate', 'contractDuration'].includes(path)) {
-            if (path === 'happeningDate' || path === 'urgency') {
-                if (r.happeningDate && r.urgency) {
-                    const baseDate = new Date(r.happeningDate);
-                    if (!isNaN(baseDate.getTime())) {
-                        let m = parseInt(r.urgency) || 0;
-                        baseDate.setMonth(baseDate.getMonth() + m);
-                        r.ecd = baseDate.toISOString().split('T')[0];
-                        r.startDate = r.ecd; 
-                    }
-                }
-            } else if (path === 'ecd') {
-                r.startDate = r.ecd; 
-            }
-
-            if (r.startDate && r.contractDuration) {
-                const sd = new Date(r.startDate);
-                if (!isNaN(sd.getTime())) {
-                    let dm = parseInt(r.contractDuration) || 0;
-                    sd.setMonth(sd.getMonth() + dm);
-                    r.endDate = sd.toISOString().split('T')[0];
+        if (path === 'happeningDate' || path === 'urgency') {
+            if (r.happeningDate && r.urgency) {
+                const baseDate = new Date(r.happeningDate);
+                if (!isNaN(baseDate.getTime())) {
+                    let m = parseInt(r.urgency) || 0;
+                    baseDate.setMonth(baseDate.getMonth() + m);
+                    r.ecd = baseDate.toISOString().split('T')[0];
+                    r.startDate = r.ecd; 
                 }
             }
-            saveRecords(); render(); return;
         }
 
         if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
@@ -1469,6 +1460,7 @@
     </div>`;
 
     let slaSec = '';
+    let monitorHistorySec = '';
     if (r) {
         if (!r.vendorSla || !Array.isArray(r.vendorSla)) r.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
         
@@ -1494,7 +1486,7 @@
                 ${field('Start Date', 'startDate', r.startDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
                 ${field('End Date', 'endDate', r.endDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
             </div>
-            <table class="editrows">
+            <table class="editrows" style="margin-bottom:12px">
               <thead>
                 <tr>
                   <th style="width:12%">Metric Type</th>
@@ -1507,10 +1499,53 @@
               </thead>
               <tbody>${slaHtml}</tbody>
             </table>
+            <div style="display:flex;justify-content:flex-end;">
+               <button class="btn btn-primary" id="vendor-add-monitor-btn" style="padding:4px 10px;font-size:.75rem">✚ Add Monitoring</button>
+            </div>
         </div>`;
+
+        if (r.vendorMonitoring && r.vendorMonitoring.length > 0) {
+            const histHtml = r.vendorMonitoring.slice().reverse().map(hist => `
+               <div style="margin-bottom: 16px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;">
+                 <div style="background: var(--line); padding: 8px 12px; font-weight: 700; font-size: .85rem; border-bottom: 1px solid var(--line);">
+                   Date: ${hist.date ? fmtDate({happeningDate: hist.date}) : '—'}
+                 </div>
+                 <table class="list" style="margin: 0; width: 100%;">
+                   <thead>
+                     <tr>
+                       <th style="width:28%">Metric</th>
+                       <th style="width:30%">Actual Performance</th>
+                       <th style="width:12%">Status</th>
+                       <th style="width:30%">Remarks</th>
+                     </tr>
+                   </thead>
+                   <tbody>
+                     ${hist.metrics.map((m, i) => `
+                       <tr>
+                         <td><b>${SLA_METRICS[i].name}</b></td>
+                         <td>${m.actual || '—'}</td>
+                         <td><span class="status-chip ${m.status==='Met'?'chip-done':m.status==='Not Met'?'chip-progress':'chip-open'}">${m.status || '—'}</span></td>
+                         <td>${m.remarks || '—'}</td>
+                       </tr>
+                     `).join('')}
+                   </tbody>
+                 </table>
+               </div>
+             `).join('');
+             
+            monitorHistorySec = `<div class="sec">
+                <div class="sec-title">Monitoring History</div>
+                ${histHtml}
+            </div>`;
+        } else {
+            monitorHistorySec = `<div class="sec">
+                <div class="sec-title">Monitoring History</div>
+                <div class="empty-state" style="padding:16px 0">No monitoring history available.</div>
+            </div>`;
+        }
     }
 
-    container.innerHTML = `<div class="form-shell">${listSec}${slaSec}</div>`;
+    container.innerHTML = `<div class="form-shell">${listSec}${slaSec}${monitorHistorySec}</div>`;
 
     container.querySelectorAll('[data-act="sel-vendor"]').forEach(row => {
         row.addEventListener('click', () => {
@@ -1541,6 +1576,38 @@
             } catch (e) { 
                 console.error(e); await showModal("Error", "Saved locally.", "alert", true); btn.innerHTML = ogTxt; btn.style.pointerEvents = 'auto'; 
             }
+        });
+        
+        container.querySelector('#vendor-add-monitor-btn').addEventListener('click', async () => {
+            let valid = true;
+            for(let i=0; i<6; i++) {
+                const actualEl = container.querySelector(`[data-path="vendorSla.${i}.actual"]`);
+                const statusEl = container.querySelector(`[data-path="vendorSla.${i}.status"]`);
+                actualEl.classList.remove('err-highlight');
+                statusEl.classList.remove('err-highlight');
+                if(!r.vendorSla[i].actual || r.vendorSla[i].actual.trim() === '') {
+                    actualEl.classList.add('err-highlight');
+                    valid = false;
+                }
+                if(!r.vendorSla[i].status || r.vendorSla[i].status.trim() === '') {
+                    statusEl.classList.add('err-highlight');
+                    valid = false;
+                }
+            }
+            if(!valid) {
+                await showModal("Validation Error", "Please fill in Actual Performance and Status for all metrics.", "alert", true);
+                return;
+            }
+            const mDate = await showModal("Monitoring Date", "Select the date for this monitoring record:", "prompt-date");
+            if(!mDate) return;
+            
+            await showModal("Success", `Monitoring record for ${mDate} added to history.`, "alert");
+            if(!r.vendorMonitoring) r.vendorMonitoring = [];
+            r.vendorMonitoring.push({ date: mDate, metrics: JSON.parse(JSON.stringify(r.vendorSla)) });
+            r.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
+            state.isDirty = true;
+            saveRecords();
+            render();
         });
     }
   }
