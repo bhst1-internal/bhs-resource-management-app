@@ -125,13 +125,13 @@
   const CONF_PASS = {'Anisah':'134510','Azlan':'111306','Eylia':'131091','Fairus':'123092','Fariz':'134828','Hafizah':'134449','Khairoulnizam':'110143','Samsulnazri':'111289','Zahidah':'131530','Zulkiple':'133513'};
   const CONF_NAMES = Object.keys(CONF_PASS).sort();
   const CATS = { mech:'Mechanical', elec:'Electrical', it:'IT', operation:'Operation', others:'Others' };
-  const URGENCY = { veryCritical:'Very Critical', within24hrs:'Within 24hrs', within2months:'Within 2 months', within1week:'Within 1 week' };
-  const ACTION_CAT = { reset:'Reset', adjustment:'Adjustment', replace:'Replace', temporary:'Temporary', othersAction:'Others' };
-  const RESULT_CAT = { testedOK:'Tested OK', modified:'Modified', pending:'Pending', temporary2:'Temporary', rectified:'Rectified', forceRun:'Force Run', kiv:'KIV' };
-  const URGENCY_MS = { veryCritical: 4*3600000, within24hrs: 24*3600000, within1week: 7*86400000, within2months: 60*86400000 };
+  const URGENCY = { '1month':'1 month', '3months':'3 months', '6months':'6 months', '12months':'12 months' };
+  const URGENCY_MS = { '1month': 30*86400000, '3months': 90*86400000, '6months': 180*86400000, '12months': 365*86400000 };
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
   const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Other'];
-  const INPUT_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+  
+  const BLANK_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+  const ALL_TABS = ['Dashboard', 'Record Input', ...BLANK_TABS];
 
   function showModal(title, msg, type = 'alert', errorMode = false) {
     return new Promise(resolve => {
@@ -160,7 +160,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', timeOfHappening:'', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', monitoring: [ {d1:'',b1:'',r1:'',d2:'',b2:'',r2:''} ], spStock:'', spStockQty:'', spStockCritical:'', spCheckedBy:'', spQty:'', spLocation:'', spCheckBy:'', spRequestDate:'', spDeliveryDate:'', spLocation2:'', requestOfAction:'', actionDate: '', actDoneBy:'', actGroup:'', actStartTime:'', actEndTime:'', actDd:'', actMm:'', actYy:'', actionCat:'', actionDetail:'', history: [ {date:'',remark:''}, {date:'',remark:''}, {date:'',remark:''} ], resultCat:'', paramSpeed:'', paramTemp:'', paramCurrent:'', paramVoltage:'', resultDetail:'', parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', timeOfHappening:'', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', history: [ {date:'',remark:''}, {date:'',remark:''}, {date:'',remark:''} ], parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -174,9 +174,8 @@
       let validData = [];
       googleData.forEach(g => {
         if (!g.createdAt || String(g.createdAt).trim() === '') return;
-        g.happeningDate = cleanDate(g.happeningDate); g.actionDate = cleanDate(g.actionDate); g.spRequestDate = cleanDate(g.spRequestDate); g.spDeliveryDate = cleanDate(g.spDeliveryDate);
-        g.timeOfHappening = cleanTime(g.timeOfHappening); g.actStartTime = cleanTime(g.actStartTime); g.actEndTime = cleanTime(g.actEndTime);
-        if (g.monitoring) g.monitoring.forEach(m => { m.d1 = cleanDate(m.d1); m.d2 = cleanDate(m.d2); });
+        g.happeningDate = cleanDate(g.happeningDate);
+        g.timeOfHappening = cleanTime(g.timeOfHappening);
         if (g.history) g.history.forEach(h => h.date = cleanDate(h.date));
         validData.push(g);
       });
@@ -215,17 +214,13 @@
   }
 
   function getStatus(r) {
-    const wordCount = str => (str || '').trim().split(/\s+/).filter(w => w.length > 0).length;
-    let agBase = r.actGroup || '', actGroupValid = agBase.toUpperCase().startsWith('VENDOR') ? agBase.substring(6).replace(/^:\s*/, '').trim().length > 0 : agBase.trim() !== '';
-    const hasActionDate = checkReq(r.actionDate) || (checkReq(r.actDd) && checkReq(r.actMm) && checkReq(r.actYy));
-    const actionComplete = hasActionDate && checkReq(r.actDoneBy) && actGroupValid && checkReq(r.actStartTime) && checkReq(r.actEndTime) && checkReq(r.actionCat) && wordCount(r.actionDetail) >= 2;
-    const resultComplete = checkReq(r.resultCat) && wordCount(r.resultDetail) >= 2;
     const f = r.flags || {};
     const checklistComplete = f.createNotification || f.createWorkOrder || f.releaseWorkOrder || f.gmps || f.timeConfirmation || f.teco || f.businessCompletion;
     const confirmValid = checkReq(r.confirmedByName);
     const signOffComplete = (r.doneByName || '').trim().length >= 3 && (r.checkByName || '').trim().length >= 3 && confirmValid;
-    if (actionComplete && resultComplete && checklistComplete && signOffComplete) return 'done';
-    return (confirmValid || hasActionDate || r.actionCat || r.resultCat || r.doneByName || r.checkByName) ? 'progress' : 'open';
+    if (checklistComplete && signOffComplete) return 'done';
+    if (confirmValid || r.doneByName || r.checkByName || (r.history && r.history.some(h=>h.date||h.remark))) return 'progress';
+    return 'open';
   }
 
   let timelineChart = null, categoryChart = null, urgencyChart = null;
@@ -263,13 +258,14 @@
     });
     completed.forEach(r => {
       const t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening);
-      const t1 = getExactTs(r.actionDate, r.actDd, r.actMm, r.actYy, r.actEndTime);
+      let t1 = getExactTs(r.updatedAt || r.createdAt);
+      if(!t1) t1 = Date.now();
       if(t0 && t1 && t1 >= t0) resTimes.push((t1 - t0) / 86400000); 
       if(t0 && t1 && URGENCY_MS[r.urgency]) { ratedTotal++; if((t1 - t0) <= URGENCY_MS[r.urgency]) onTime++; }
     });
     let topCat = null, topCatCount = 0;
     Object.entries(catCounts).forEach(([k,v]) => { if(v > topCatCount) { topCat = k; topCatCount = v; } });
-    return { total: activeRecs.length, openCount: open.length, completedCount: completed.length, avgRes: resTimes.length ? (resTimes.reduce((a,b)=>a+b,0)/resTimes.length) : null, criticalPending: open.filter(r => r.urgency === 'veryCritical' || r.urgency === 'within24hrs').length, topCat, topCatCount, onTimeRate: ratedTotal ? Math.round((onTime/ratedTotal)*100) : null, catCounts };
+    return { total: activeRecs.length, openCount: open.length, completedCount: completed.length, avgRes: resTimes.length ? (resTimes.reduce((a,b)=>a+b,0)/resTimes.length) : null, criticalPending: open.filter(r => r.urgency === '1month' || r.urgency === '3months').length, topCat, topCatCount, onTimeRate: ratedTotal ? Math.round((onTime/ratedTotal)*100) : null, catCounts };
   }
 
   function applyTimelineFilters(chartInstance, containerId) {
@@ -324,7 +320,7 @@
     const totalCompletionRate = k.total === 0 ? null : Math.round((k.completedCount / k.total) * 100);
     const kpiCards = [
       { l: 'Open Work Orders', v: k.openCount, c: 'var(--crit)', s: `${k.total} total filtered`, p: k.openCount>0?`<span class="kpi-pill pill-crit">Needs attention</span>`:`<span class="kpi-pill pill-ok">All clear</span>` },
-      { l: 'Critical / Urgent Pending', v: k.criticalPending, c: 'var(--warn)', s: 'Very Critical + Within 24hrs, open', p: k.criticalPending>0?`<span class="kpi-pill pill-warn">Prioritise</span>`:`<span class="kpi-pill pill-ok">None pending</span>` },
+      { l: 'Critical / Urgent Pending', v: k.criticalPending, c: 'var(--warn)', s: '1 & 3 Months target, open', p: k.criticalPending>0?`<span class="kpi-pill pill-warn">Prioritise</span>`:`<span class="kpi-pill pill-ok">None pending</span>` },
       { l: 'Top Fault Category', v: k.topCat || '—', c: 'var(--accent-2)', s: k.topCat ? `${k.topCatCount} occurrence${k.topCatCount===1?'':'s'} logged` : 'No category data yet', p: '' },
       { l: 'Total Completion', v: totalCompletionRate===null?'—':(totalCompletionRate+'%'), c: 'var(--accent)', s: `${k.completedCount} of ${k.total} job${k.total===1?'':'s'} done`, p: totalCompletionRate===100?`<span class="kpi-pill pill-ok">Perfect</span>`:'' },
       { l: 'On-Time Completion', v: k.onTimeRate===null?'—':(k.onTimeRate+'%'), c: 'var(--ok)', s: k.onTimeRate===null?'No rated completions yet':'vs. exact SLA target', p: k.onTimeRate!==null?(k.onTimeRate>=80?`<span class="kpi-pill pill-ok">On target</span>`:`<span class="kpi-pill pill-warn">Below target</span>`):'', tooltip: `Avg. Resolution Time: ${k.avgRes===null?'—':(k.avgRes.toFixed(1)+' days')} (across ${k.completedCount} completed jobs)` }
@@ -346,8 +342,7 @@
     document.querySelectorAll('[data-act="open"]').forEach(btn => btn.addEventListener('click', () => { 
         const id = String(btn.getAttribute('data-id'));
         state.activeId = id; 
-        const rec = state.records.find(x => String(x.createdAt) === id);
-        if (rec) state.tab = rec.maintenanceType || 'Manpower Management';
+        state.tab = 'Record Input';
         render(); 
     }));
 
@@ -366,27 +361,8 @@
       
       timelineFiltered.forEach(r => {
         let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening) || parseInt(r.createdAt, 10); if(isNaN(t0)) t0 = nowTs;
-        let tAction = getExactTs(r.actionDate, r.actDd, r.actMm, r.actYy, r.actStartTime);
-        let t1 = getExactTs(r.actionDate, r.actDd, r.actMm, r.actYy, r.actEndTime);
         let statusLogic = getStatus(r);
-        
-        if (statusLogic !== 'done' || !t1 || isNaN(t1)) t1 = nowTs;
-        
-        let endOfAction = t1;
-        let hasValidActionSegment = false;
-        
-        if (tAction && !isNaN(tAction) && statusLogic !== 'open') {
-           if (tAction > t0) {
-              hasValidActionSegment = true;
-              endOfAction = Math.max(t1, tAction + 3600000);
-           } else {
-              endOfAction = Math.max(t1, t0 + 3600000);
-           }
-        } else if (statusLogic !== 'open') {
-           endOfAction = Math.max(t1, t0 + 3600000);
-        } else {
-           endOfAction = nowTs;
-        }
+        let endOfAction = statusLogic === 'done' ? (getExactTs(r.updatedAt || r.createdAt) || nowTs) : nowTs;
         
         let totalX = [t0, endOfAction];
         let targetT = t0 + (URGENCY_MS[r.urgency] || 0);
@@ -402,9 +378,6 @@
 
         if (statusLogic === 'open') {
             dsTarget.push({ x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: endOfAction });
-        } else if (hasValidActionSegment) {
-            dsTarget.push({ x: [t0, tAction], y: labelStr, _r: r, _totalX: totalX, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: tAction });
-            dsTarget.push({ x: [tAction, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: activeBg, _bc: activeBc, _isActionBox: true });
         } else {
             dsTarget.push({ x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: activeBg, _bc: activeBc, _isActionBox: true });
         }
@@ -458,9 +431,9 @@
       categoryChart.update();
     }
     if (urgencyChart) {
-      const uCounts = { veryCritical: 0, within24hrs: 0, within1week: 0, within2months: 0 };
+      const uCounts = { '1month': 0, '3months': 0, '6months': 0, '12months': 0 };
       filtered.forEach(r => { if(r.urgency && uCounts[r.urgency] !== undefined) uCounts[r.urgency]++; });
-      urgencyChart.data.datasets[0].data = [uCounts.veryCritical, uCounts.within24hrs, uCounts.within1week, uCounts.within2months]; urgencyChart.update();
+      urgencyChart.data.datasets[0].data = [uCounts['1month'], uCounts['3months'], uCounts['6months'], uCounts['12months']]; urgencyChart.update();
     }
   }
 
@@ -531,7 +504,7 @@
             id: 'slaOutline',
             beforeDatasetsDraw(chart) {
               const ctx = chart.ctx, xAxis = chart.scales.x;
-              const URG_COLORS = { veryCritical: '#dc2626', within24hrs: '#d97706', within1week: '#eab308', within2months: '#2563eb' };
+              const URG_COLORS = { '1month': '#dc2626', '3months': '#d97706', '6months': '#eab308', '12months': '#2563eb' };
               const drawn = new Set();
               ctx.save();
               ctx.beginPath();
@@ -600,7 +573,7 @@
               plugins: {
                   customCanvasBackgroundColor: { color: '#ffffff' }, 
                   legend: { display:false }, 
-                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; let rS = '—'; if(r.actStartTime && r.actEndTime) { let sP = r.actStartTime.split(':'), eP = r.actEndTime.split(':'); if(sP.length>1 && eP.length>1) { let sM = parseInt(sP[0])*60+parseInt(sP[1]), eM = parseInt(eP[0])*60+parseInt(eP[1]); if(eM < sM) eM += 1440; let df = eM - sM; rS = String(Math.floor(df/60)).padStart(2,'0')+':'+String(df%60).padStart(2,'0'); } } return [`Date: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Rectification Time: ${rS}`, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
+                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; return [`Date: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
               },
               scales: { 
                   x: { 
@@ -872,6 +845,36 @@
 
       const customBgPlugin = { id:'customCanvasBackgroundColor', beforeDraw:(c, a, o)=>{ const ctx=c.ctx; ctx.save(); ctx.globalCompositeOperation='destination-over'; ctx.fillStyle=o.color||'#ffffff'; ctx.fillRect(0,0,c.width,c.height); ctx.restore(); } };
 
+      const verticalLinePlugin = {
+        id: 'verticalLine',
+        afterDraw: chart => {
+          const xIndex = chart.config.options.plugins?.verticalLine?.index;
+          if (xIndex === undefined || xIndex <= 0 || xIndex >= chart.data.labels.length) return;
+          const ctx = chart.ctx;
+          const xAxis = chart.scales.x;
+          const yAxis = chart.scales.y;
+          const leftTick = xAxis.getPixelForTick(xIndex - 1);
+          const rightTick = xAxis.getPixelForTick(xIndex);
+          if (leftTick === undefined || rightTick === undefined) return;
+          const xPos = (leftTick + rightTick) / 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(xPos, yAxis.top);
+          ctx.lineTo(xPos, yAxis.bottom);
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#9ca3af';
+          ctx.stroke();
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('CATEGORY', (xAxis.left + xPos) / 2, yAxis.top + 5);
+          ctx.fillText('TYPE', (xPos + xAxis.right) / 2, yAxis.top + 5);
+          ctx.restore();
+        }
+      };
+
       const tlCtx = document.getElementById('acm-timeline-chart'); 
       if(tlCtx) {
           if (timelineChart) timelineChart.destroy();
@@ -938,7 +941,7 @@
       const urgCtx = document.getElementById('acm-urgency-chart');
       if (urgCtx) {
         if(urgencyChart) urgencyChart.destroy();
-        urgencyChart = new Chart(urgCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:['Very Critical', 'Within 24hrs', 'Within 1 week', 'Within 2 months'], datasets:[{data:[0,0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} memo${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
+        urgencyChart = new Chart(urgCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:['1 month', '3 months', '6 months', '12 months'], datasets:[{data:[0,0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} record${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
       }
 
       updateDashboardUI();
@@ -956,7 +959,6 @@
     return `<label class="f">${lbl}<div style="display:flex;gap:6px"><select style="flex:1;min-width:0" data-calc-group="${tKey}" data-part="base"><option value=""></option>${opts.map(o=>`<option value="${o}" ${bVal===o?'selected':''}>${o}</option>`).join('')}</select>${bVal===triggerVal?`<input type="text" style="flex:1;min-width:0" placeholder="${specLabel}" data-calc-group="${tKey}" data-part="vendor" value="${vVal}"/>`:''}</div></label>`; 
   }
   function searchableSelectField(lbl, path, val, opts, lid) { return `<label class="f">${lbl}<input type="text" data-path="${path}" value="${val||''}" list="${lid}" autocomplete="off" placeholder="Type or select..."/><datalist id="${lid}">${opts.map(o=>`<option value="${o}"></option>`).join('')}</datalist></label>`; }
-  function ensureRows(arr, len, tplFn) { arr = arr||[]; while(arr.length < len) arr.push(tplFn()); return arr; }
 
   function updateHighlights(container, r) {
     if (!state.showErrors) return;
@@ -965,7 +967,7 @@
     let igBase = r.issuedGroup || ''; 
     if(igBase.toUpperCase().startsWith('OTHER:')) igBase = 'Other';
     
-    ['happeningDate', 'issuedBy', 'reportNo', 'maintenanceType', 'timeOfHappening', 'title', 'area', 'subArea', 'areaNo', 'lineEquipment'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
+    ['happeningDate', 'issuedBy', 'reportNo', 'timeOfHappening', 'title', 'area', 'subArea', 'areaNo', 'lineEquipment'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
     
     let needsEquipNo = igBase !== 'Other';
     let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase || 'Conveyor Line');
@@ -981,38 +983,16 @@
 
   function getActive() { return state.activeId ? (state.records.find(r => String(r.createdAt) === String(state.activeId)) || null) : null; }
 
-  function renderInput(container, currentTab) {
+  function renderInput(container) {
     let r = getActive();
-    
-    if (r && r.maintenanceType !== currentTab && !r.isDraft) {
-        r = state.records.find(x => x.maintenanceType === currentTab && !x.isDraft) || null;
-        if (r) state.activeId = r.createdAt;
-    }
-    
-    if (!r) { 
-        r = blankRecord(); 
-        r.reportNo = getNextReportNo(); 
-        r.maintenanceType = currentTab;
-        state.records.unshift(r); 
-        state.activeId = r.createdAt; 
-        state.isDirty = false; 
-    }
-    
+    if (!r) { r = blankRecord(); r.reportNo = getNextReportNo(); state.records.unshift(r); state.activeId = r.createdAt; state.isDirty = false; }
     if (!state.isDirty) state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
-    r.monitoring = ensureRows(r.monitoring, 2, () => ({d1:'',b1:'',r1:'',d2:'',b2:'',r2:''}));
-    r.history = ensureRows(r.history, 3, () => ({date:'',remark:''}));
-    r.parts = ensureRows(r.parts, 9, () => ({item:'',spec:'',part:'',qty:'',dismantle:'',sap:''}));
 
-    const tabRecords = state.records.filter(x => x.maintenanceType === currentTab || (x.isDraft && x.maintenanceType === currentTab));
-    const options = tabRecords.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
+    const options = state.records.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
     
     let igBase = r.issuedGroup||'', igOther = ''; 
     if(igBase.toUpperCase().startsWith('OTHER:')){ igBase = 'Other'; igOther = (r.issuedGroup||'').substring(6).trim(); } 
     else if(igBase === 'Other') { igOther = ''; }
-
-    let agBase = r.actGroup||'', agVendor = ''; 
-    if(agBase.toUpperCase().startsWith('VENDOR')){ agBase = 'Vendor'; agVendor = (r.actGroup||'').substring(6).replace(/^:\s*/,'').trim(); }
-    else if(agBase === 'Vendor') { agVendor = ''; }
 
     const currentLine = r.lineEquipment || '', noOptions = (currentLine && EQUIP_DB[currentLine]) ? Object.keys(EQUIP_DB[currentLine]).sort() : [];
     if(currentLine) noOptions.push('OTHERS');
@@ -1062,13 +1042,13 @@
         </div>`;
     }
 
-    container.innerHTML = `<div class="form-shell"><div class="form-toolbar"><div class="rec-select"><span style="font-weight:700">Record No.:</span><select class="recpick" id="acm-recpick">${options}</select></div><div class="btn-row"><button class="btn btn-ghost" id="acm-new-btn">✚ Add New Record</button><button class="btn btn-danger" id="acm-del-btn">Delete ✘</button><button class="btn btn-primary" id="acm-submit-btn" style="background:var(--ok)">Submit ✔</button></div></div><div class="sec"><div class="sec-title">Classification</div><div class="grid g3">${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}${field('Time','timeOfHappening',r.timeOfHappening,'time')}</div><div class="grid g3" style="margin-top:10px">${field('Date','happeningDate',r.happeningDate,'date')}${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}${groupField('Criteria','issuedGroup',igBase,igOther,true)}</div></div><div class="sec"><div class="sec-title">Title &amp; Criteria Details</div><div class="grid g1">${field('Title','title',r.title)}</div>${areaSection}${dynamicSection}</div><div class="sec" id="sec-category"><div class="sec-title">Category</div><div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div></div><div class="sec" id="sec-urgency"><div class="sec-title">Degree of Urgency</div><div class="radio-row">${Object.entries(URGENCY).map(([k,l])=>radio('urgency',l,k,r.urgency===k,'urgency')).join('')}</div></div><div class="sec"><div class="sec-title">Reason / Detail</div>${field('Describe the reason and detail of the fault','reasonDetail',r.reasonDetail,'textarea')}</div><div class="sec"><div class="sec-title">Monitoring Status (Progress)</div><table class="editrows"><thead><tr><th>Insp. Date</th><th>By</th><th>Result</th><th>Insp. Date</th><th>By</th><th>Result</th></tr></thead><tbody>${(r.monitoring||[]).map((m,i)=>`<tr><td><input type="date" data-path="monitoring.${i}.d1" value="${m.d1||''}"/></td><td><input type="text" data-path="monitoring.${i}.b1" value="${m.b1||''}"/></td><td><input type="text" data-path="monitoring.${i}.r1" value="${m.r1||''}"/></td><td><input type="date" data-path="monitoring.${i}.d2" value="${m.d2||''}"/></td><td><input type="text" data-path="monitoring.${i}.b2" value="${m.b2||''}"/></td><td><input type="text" data-path="monitoring.${i}.r2" value="${m.r2||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Spare Part Status</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin-bottom:6px">Row 1</div><div class="grid g5">${field('Stock:','spStock',r.spStock)}${field('Stock Qty','spStockQty',r.spStockQty)}${field('Stock: Critical','spStockCritical',r.spStockCritical)}${field('Checked by','spCheckedBy',r.spCheckedBy)}${field('Qty','spQty',r.spQty)}</div><div class="hint" style="font-size:.65rem;color:var(--text-sec);margin:10px 0 6px">Row 2</div><div class="grid g5">${field('Location','spLocation',r.spLocation)}${field('Check by','spCheckBy',r.spCheckBy)}${field('Request date','spRequestDate',r.spRequestDate,'date')}${field('Delivery date','spDeliveryDate',r.spDeliveryDate,'date')}${field('Location (2)','spLocation2',r.spLocation2)}</div></div><div class="sec"><div class="sec-title">Request of Action</div>${field('Request of action','requestOfAction',r.requestOfAction,'textarea')}</div><div class="sec"><div class="sec-title">Action</div><div class="grid g3">${field('Date','actionDate',r.actionDate,'date')}${field('Done By','actDoneBy',r.actDoneBy)}${groupField('Group','actGroup',agBase,agVendor,false)}</div><div class="grid g2" style="margin-top:10px">${field('Start time','actStartTime',r.actStartTime,'time')}${field('End time','actEndTime',r.actEndTime,'time')}</div><div style="margin-top:10px"><div class="sec-title" style="font-size:.65rem">Category</div><div class="radio-row">${Object.entries(ACTION_CAT).map(([k,l])=>radio('actionCat',l,k,r.actionCat===k,'actionCat')).join('')}</div></div><div style="margin-top:10px">${field('Detail','actionDetail',r.actionDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">History (Last 3 Changing Dates)</div><table class="editrows"><thead><tr><th>#</th><th>Date</th><th>Remark</th></tr></thead><tbody>${(r.history||[]).map((h,i)=>`<tr><td style="width:30px">${i+1})</td><td><input type="date" data-path="history.${i}.date" value="${h.date||''}"/></td><td><input type="text" data-path="history.${i}.remark" value="${h.remark||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Result</div><div class="radio-row">${Object.entries(RESULT_CAT).map(([k,l])=>radio('resultCat',l,k,r.resultCat===k,'resultCat')).join('')}</div><div class="grid g4" style="margin-top:10px">${field('Speed (m/min)','paramSpeed',r.paramSpeed)}${field('Temp (°C)','paramTemp',r.paramTemp)}${field('Current (A)','paramCurrent',r.paramCurrent)}${field('Voltage (V)','paramVoltage',r.paramVoltage)}</div><div style="margin-top:10px">${field('Detail / Status','resultDetail',r.resultDetail,'textarea')}</div></div><div class="sec"><div class="sec-title">Parts Record</div><table class="editrows"><thead><tr><th>No.</th><th>Item/Equipment name</th><th>Specification</th><th>Part</th><th>Qty</th><th>Dismantle part status</th><th>SAP No / Others</th></tr></thead><tbody>${(r.parts||[]).map((p,i)=>`<tr><td style="width:30px">${i+1}</td><td><input type="text" data-path="parts.${i}.item" value="${p.item||''}"/></td><td><input type="text" data-path="parts.${i}.spec" value="${p.spec||''}"/></td><td><input type="text" data-path="parts.${i}.part" value="${p.part||''}"/></td><td><input type="text" data-path="parts.${i}.qty" value="${p.qty||''}"/></td><td><input type="text" data-path="parts.${i}.dismantle" value="${p.dismantle||''}"/></td><td><input type="text" data-path="parts.${i}.sap" value="${p.sap||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Completion Checklist</div><div class="check-row">${checkbox('Create Notification',(r.flags||{}).createNotification,'flags.createNotification')}${checkbox('Create Work Order',(r.flags||{}).createWorkOrder,'flags.createWorkOrder')}${checkbox('Release Work Order',(r.flags||{}).releaseWorkOrder,'flags.releaseWorkOrder')}${checkbox('GMPS',(r.flags||{}).gmps,'flags.gmps')}</div><div class="check-row" style="margin-top:8px">${checkbox('Time Confirmation',(r.flags||{}).timeConfirmation,'flags.timeConfirmation')}${checkbox('TECO',(r.flags||{}).teco,'flags.teco')}${checkbox('Business Completion',(r.flags||{}).businessCompletion,'flags.businessCompletion')}</div></div><div class="sec"><div class="sec-title">Sign-off</div><div class="grid g3">${field('Done By (TECH)','doneByName',r.doneByName)}${field('Check By (TO/SP)','checkByName',r.checkByName)}${selectField('Confirmed By (TE/E/SE)','confirmedByName',r.confirmedByName,CONF_NAMES)}</div></div></div>`;
+    container.innerHTML = `<div class="form-shell"><div class="form-toolbar"><div class="rec-select"><span style="font-weight:700">Record No.:</span><select class="recpick" id="acm-recpick">${options}</select></div><div class="btn-row"><button class="btn btn-ghost" id="acm-new-btn">✚ Add New Record</button><button class="btn btn-danger" id="acm-del-btn">Delete ✘</button><button class="btn btn-primary" id="acm-submit-btn" style="background:var(--ok)">Submit ✔</button></div></div><div class="sec"><div class="sec-title">Classification</div><div class="grid g2">${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}${field('Time','timeOfHappening',r.timeOfHappening,'time')}</div><div class="grid g3" style="margin-top:10px">${field('Date','happeningDate',r.happeningDate,'date')}${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}${groupField('Criteria','issuedGroup',igBase,igOther,true)}</div></div><div class="sec"><div class="sec-title">Title &amp; Criteria Details</div><div class="grid g1">${field('Title','title',r.title)}</div>${areaSection}${dynamicSection}</div><div class="sec" id="sec-category"><div class="sec-title">Category</div><div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div></div><div class="sec" id="sec-urgency"><div class="sec-title">Degree of Urgency</div><div class="radio-row">${Object.entries(URGENCY).map(([k,l])=>radio('urgency',l,k,r.urgency===k,'urgency')).join('')}</div></div><div class="sec"><div class="sec-title">Detail Description</div>${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}</div><div class="sec"><div class="sec-title">History (Last 3 Changing Dates)</div><table class="editrows"><thead><tr><th>#</th><th>Date</th><th>Remark</th></tr></thead><tbody>${(r.history||[]).map((h,i)=>`<tr><td style="width:30px">${i+1})</td><td><input type="date" data-path="history.${i}.date" value="${h.date||''}"/></td><td><input type="text" data-path="history.${i}.remark" value="${h.remark||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Past Record</div><table class="editrows"><thead><tr><th>No.</th><th>Item/Equipment name</th><th>Specification</th><th>Part</th><th>Qty</th><th>Dismantle part status</th><th>SAP No / Others</th></tr></thead><tbody>${(r.parts||[]).map((p,i)=>`<tr><td style="width:30px">${i+1}</td><td><input type="text" data-path="parts.${i}.item" value="${p.item||''}"/></td><td><input type="text" data-path="parts.${i}.spec" value="${p.spec||''}"/></td><td><input type="text" data-path="parts.${i}.part" value="${p.part||''}"/></td><td><input type="text" data-path="parts.${i}.qty" value="${p.qty||''}"/></td><td><input type="text" data-path="parts.${i}.dismantle" value="${p.dismantle||''}"/></td><td><input type="text" data-path="parts.${i}.sap" value="${p.sap||''}"/></td></tr>`).join('')}</tbody></table></div><div class="sec"><div class="sec-title">Completion Checklist</div><div class="check-row">${checkbox('Create Notification',(r.flags||{}).createNotification,'flags.createNotification')}${checkbox('Create Work Order',(r.flags||{}).createWorkOrder,'flags.createWorkOrder')}${checkbox('Release Work Order',(r.flags||{}).releaseWorkOrder,'flags.releaseWorkOrder')}${checkbox('GMPS',(r.flags||{}).gmps,'flags.gmps')}</div><div class="check-row" style="margin-top:8px">${checkbox('Time Confirmation',(r.flags||{}).timeConfirmation,'flags.timeConfirmation')}${checkbox('TECO',(r.flags||{}).teco,'flags.teco')}${checkbox('Business Completion',(r.flags||{}).businessCompletion,'flags.businessCompletion')}</div></div><div class="sec"><div class="sec-title">Sign-off</div><div class="grid g3">${field('Done By (TECH)','doneByName',r.doneByName)}${field('Check By (TO/SP)','checkByName',r.checkByName)}${selectField('Confirmed By (TE/E/SE)','confirmedByName',r.confirmedByName,CONF_NAMES)}</div></div></div>`;
 
     updateHighlights(container, r);
     const wrapAction = async (cb) => { if(state.isDirty){ const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if(!discard) return false; revertActiveRecord(); } return true; };
 
     container.querySelector('#acm-recpick').addEventListener('change', async (e) => { if(await wrapAction()){ state.showErrors = false; state.activeId = String(e.target.value); state.isDirty = false; render(); } else e.target.value = state.activeId; });
-    container.querySelector('#acm-new-btn').addEventListener('click', async () => { if(await wrapAction()){ await showModal("Notice", "Please enter accurate INPUT for records", "alert"); const nr = blankRecord(); nr.reportNo = getNextReportNo(); nr.maintenanceType = currentTab; state.records.unshift(nr); state.activeId = nr.createdAt; state.showErrors = false; state.isDirty = false; saveRecords(); render(); } });
+    container.querySelector('#acm-new-btn').addEventListener('click', async () => { if(await wrapAction()){ await showModal("Notice", "Please enter accurate INPUT for records", "alert"); const nr = blankRecord(); nr.reportNo = getNextReportNo(); state.records.unshift(nr); state.activeId = nr.createdAt; state.showErrors = false; state.isDirty = false; saveRecords(); render(); } });
     container.querySelector('#acm-del-btn').addEventListener('click', async () => {
       if(!await showModal("Confirm Deletion", "Delete this record? This cannot be undone.", "confirm")) return;
       const pass = await showModal("Authorization", "Password required to delete this record:", "prompt");
@@ -1084,7 +1064,6 @@
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
-      if(!checkReq(r.maintenanceType)) errs.push("[Classification] Classification");
       if(!checkReq(r.timeOfHappening)) errs.push("[Classification] Time");
       
       let needsEquipNo = igBase !== 'Other';
@@ -1095,7 +1074,7 @@
 
       if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k]))) errs.push("[Category] Select at least one category");
       if(!r.urgency) errs.push("[Degree of Urgency] Please select one");
-      if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) errs.push("[Reason / Detail] Please write at least 2 words");
+      if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) errs.push("[Detail Description] Please write at least 2 words");
       updateHighlights(container, r);
 
       if(errs.length) await showModal("Submit Failed", "Please complete the highlighted required data:\n\n- " + errs.join("\n- "), "alert", true);
@@ -1107,70 +1086,75 @@
       }
     });
 
-    container.querySelectorAll('[data-calc-group]').forEach(el => el.addEventListener(el.tagName==='SELECT'?'change':'input', () => {
-      state.isDirty = true; 
-      const wrp = el.closest('div'), bVal = wrp.querySelector('[data-part="base"]')?.value||'', vVal = wrp.querySelector('[data-part="vendor"]')?.value||'';
-      const cg = el.getAttribute('data-calc-group');
-      const isMainCat = cg === 'issuedGroup';
-      const triggerVal = isMainCat ? 'Other' : 'Vendor';
-      const newVal = (bVal === triggerVal) ? (vVal ? `${bVal}: ${vVal}` : bVal) : bVal;
-      
-      if (isMainCat) {
-          let oldBase = r.issuedGroup || '';
-          let parsedOld = oldBase.toUpperCase().startsWith('OTHER:') ? 'Other' : oldBase;
-          if (bVal !== parsedOld) {
-              r.lineEquipment = '';
-              r.equipNo = '';
-              r.conveyorItem = '';
-          }
-      }
+    container.querySelectorAll('[data-calc-group]').forEach(el => {
+      if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT') return;
+      el.addEventListener(el.tagName==='SELECT'?'change':'input', () => {
+        state.isDirty = true; 
+        const wrp = el.closest('div'), bVal = wrp.querySelector('[data-part="base"]')?.value||'', vVal = wrp.querySelector('[data-part="vendor"]')?.value||'';
+        const cg = el.getAttribute('data-calc-group');
+        const isMainCat = cg === 'issuedGroup';
+        const triggerVal = isMainCat ? 'Other' : 'Vendor';
+        const newVal = (bVal === triggerVal) ? (vVal ? `${bVal}: ${vVal}` : bVal) : bVal;
+        
+        if (isMainCat) {
+            let oldBase = r.issuedGroup || '';
+            let parsedOld = oldBase.toUpperCase().startsWith('OTHER:') ? 'Other' : oldBase;
+            if (bVal !== parsedOld) {
+                r.lineEquipment = '';
+                r.equipNo = '';
+                r.conveyorItem = '';
+            }
+        }
 
-      setByPath(r, cg, newVal); 
-      saveRecords();
-      if(el.getAttribute('data-part')==='base') render(); else updateHighlights(container, r);
-    }));
+        setByPath(r, cg, newVal); 
+        saveRecords();
+        if(el.getAttribute('data-part')==='base') render(); else updateHighlights(container, r);
+      });
+    });
 
-    container.querySelectorAll('[data-path]').forEach(el => el.addEventListener((el.type==='checkbox'||el.type==='radio'||el.tagName==='SELECT')?'change':'input', async () => {
-      const path = el.getAttribute('data-path'); let newVal = el.type==='checkbox'?el.checked:el.value;
-      if(path === 'confirmedByName' && newVal !== '') {
-        const pwd = await showModal("Authorization", `Enter 6-digit pin for ${newVal}:`, "prompt");
-        if(pwd !== CONF_PASS[newVal]) { await showModal("Error", "Incorrect pin. Signature reversed.", "alert", true); el.value = r.confirmedByName || ''; return; }
-      }
-      
-      if (path === 'maintenanceType') {
-          state.tab = newVal;
-          saveRecords();
-          render();
-          return;
-      }
-      
-      state.isDirty = true; setByPath(r, path, newVal);
-      if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
-      
-      if((path === 'lineEquipment' || path === 'equipNo') && (!igBase || igBase === 'Conveyor Line')) { 
-          r.conveyorItem = (r.lineEquipment && r.equipNo) ? (r.equipNo==='OTHERS'?'OTHERS':((EQUIP_DB[r.lineEquipment] && EQUIP_DB[r.lineEquipment][r.equipNo]) || '')) : ''; 
-          const cEl = container.querySelector('[data-path="conveyorItem"]');
-          if(cEl) cEl.value = r.conveyorItem; 
-      }
-      saveRecords(); updateHighlights(container, r);
-    }));
+    container.querySelectorAll('[data-path]').forEach(el => {
+      if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
+      el.addEventListener((el.type==='checkbox'||el.type==='radio'||el.tagName==='SELECT')?'change':'input', async () => {
+        const path = el.getAttribute('data-path'); let newVal = el.type==='checkbox'?el.checked:el.value;
+        if(path === 'confirmedByName' && newVal !== '') {
+          const pwd = await showModal("Authorization", `Enter 6-digit pin for ${newVal}:`, "prompt");
+          if(pwd !== CONF_PASS[newVal]) { await showModal("Error", "Incorrect pin. Signature reversed.", "alert", true); el.value = r.confirmedByName || ''; return; }
+        }
+        
+        state.isDirty = true; setByPath(r, path, newVal);
+        if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
+        
+        if((path === 'lineEquipment' || path === 'equipNo') && (!igBase || igBase === 'Conveyor Line')) { 
+            r.conveyorItem = (r.lineEquipment && r.equipNo) ? (r.equipNo==='OTHERS'?'OTHERS':((EQUIP_DB[r.lineEquipment] && EQUIP_DB[r.lineEquipment][r.equipNo]) || '')) : ''; 
+            const cEl = container.querySelector('[data-path="conveyorItem"]');
+            if(cEl) cEl.value = r.conveyorItem; 
+        }
+        saveRecords(); updateHighlights(container, r);
+      });
+    });
   }
 
   function setByPath(obj, path, value) { const parts = path.split('.'); let cur = obj; for (let i = 0; i < parts.length - 1; i++) { cur = cur[isFinite(parts[i]) ? Number(parts[i]) : parts[i]]; } cur[parts[parts.length - 1]] = value; }
 
+  function renderBlank(container, title) {
+    container.innerHTML = `<div class="panel" style="min-height:400px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--line-dark); background:transparent;"><div class="empty-state" style="font-size:1.1rem; color:var(--text-sec); font-weight:600">The <b>${title}</b> module is currently blank and under development.</div></div>`;
+  }
+
   function render() {
-    ROOT.innerHTML = `<div class="wrap"><div class="topbar"><div class="brand"><div class="k">KLIA - Baggage Handling System T1</div><div class="t">BHS Maintenance : Resource Management Monitoring</div></div><div class="tabs"><button class="tab-btn ${state.tab==='Dashboard'?'active':''}" data-tab="Dashboard">Dashboard</button>${INPUT_TABS.map(t => `<button class="tab-btn ${state.tab===t?'active':''}" data-tab="${t}">${t}</button>`).join('')}</div></div><div id="acm-content"></div></div>`;
+    ROOT.innerHTML = `<div class="wrap"><div class="topbar"><div class="brand"><div class="k">KLIA - Baggage Handling System T1</div><div class="t">BHS Maintenance : Resource Management Monitoring</div></div><div class="tabs">${ALL_TABS.map(t => `<button class="tab-btn ${state.tab===t?'active':''}" data-tab="${t}">${t}</button>`).join('')}</div></div><div id="acm-content"></div></div>`;
     ROOT.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', async () => { 
         const targetTab = b.getAttribute('data-tab');
-        if (state.tab !== 'Dashboard' && targetTab !== state.tab && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
+        if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
         state.tab = targetTab; render(); 
       });
     });
     const content = document.getElementById('acm-content');
     if (!state.loaded) { content.innerHTML = `<div class="empty-state">Loading records…</div>`; return; }
+    
     if (state.tab === 'Dashboard') renderDashboard(content);
-    else if (INPUT_TABS.includes(state.tab)) renderInput(content, state.tab);
+    else if (state.tab === 'Record Input') renderInput(content);
+    else if (BLANK_TABS.includes(state.tab)) renderBlank(content, state.tab);
   }
 
   render();
