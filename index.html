@@ -173,7 +173,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})) };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})) };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -188,6 +188,8 @@
         if (!g.createdAt || String(g.createdAt).trim() === '') return;
         g.happeningDate = cleanDate(g.happeningDate);
         g.ecd = cleanDate(g.ecd);
+        g.startDate = cleanDate(g.startDate);
+        g.endDate = cleanDate(g.endDate);
         
         if (g.clm && Array.isArray(g.clm)) {
             g.clm = {
@@ -708,11 +710,11 @@
     document.getElementById('dash-export-btn').addEventListener('click', () => {
       const filteredForExport = getFilteredDashboardRecords().sort((a,b)=>b.createdAt-a.createdAt);
       if(filteredForExport.length === 0) return showModal("Export Failed", "No record to export based on current filters.", "alert", true);
-      const csvRows = [['Record No.', 'Date Issued', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'ECD', 'Status']];
+      const csvRows = [['Record No.', 'Date Issued', 'Start Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'ECD', 'End Date', 'Status']];
       filteredForExport.forEach(r => {
         const st = getStatus(r), urg = URGENCY[r.urgency] || '';
         let catList = []; if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({happeningDate: r.ecd}) : ''}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
+        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${r.startDate ? fmtDate({happeningDate: r.startDate}) : ''}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({happeningDate: r.ecd}) : ''}"`, `"${r.endDate ? fmtDate({happeningDate: r.endDate}) : ''}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
       });
       const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e=>e.join(",")).join("\n")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
@@ -1137,6 +1139,18 @@
                 ${field('Expected Completion Date (ECD)', 'ecd', r.ecd, 'date')}
             </div>
         </div>
+        
+        <div class="sec" id="sec-contract-dates">
+            <div class="sec-title">Contract Start - End Date</div>
+            <div class="radio-row">
+                ${['6 months', '12 months', '18 months', '24 months'].map(opt => radio('contractDuration', opt, opt, r.contractDuration === opt, 'contractDuration')).join('')}
+            </div>
+            <div class="grid g2" style="margin-top:12px">
+                ${field('Start Date', 'startDate', r.startDate, 'date')}
+                ${field('End Date', 'endDate', r.endDate, 'date')}
+            </div>
+        </div>
+
         <div class="sec">
             <div class="sec-title">Detail Description</div>
             ${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}
@@ -1228,21 +1242,30 @@
 
         state.isDirty = true; setByPath(r, path, newVal);
         
-        if (path === 'happeningDate' || path === 'urgency') {
-            if (r.happeningDate && r.urgency) {
-                const baseDate = new Date(r.happeningDate);
-                if (!isNaN(baseDate.getTime())) {
-                    let m = 0;
-                    if (r.urgency === '1month') m = 1;
-                    if (r.urgency === '3months') m = 3;
-                    if (r.urgency === '6months') m = 6;
-                    if (r.urgency === '12months') m = 12;
-                    baseDate.setMonth(baseDate.getMonth() + m);
-                    r.ecd = baseDate.toISOString().split('T')[0];
-                    const ecdEl = container.querySelector('[data-path="ecd"]');
-                    if (ecdEl) ecdEl.value = r.ecd;
+        if (['happeningDate', 'urgency', 'ecd', 'startDate', 'contractDuration'].includes(path)) {
+            if (path === 'happeningDate' || path === 'urgency') {
+                if (r.happeningDate && r.urgency) {
+                    const baseDate = new Date(r.happeningDate);
+                    if (!isNaN(baseDate.getTime())) {
+                        let m = parseInt(r.urgency) || 0;
+                        baseDate.setMonth(baseDate.getMonth() + m);
+                        r.ecd = baseDate.toISOString().split('T')[0];
+                        r.startDate = r.ecd; 
+                    }
+                }
+            } else if (path === 'ecd') {
+                r.startDate = r.ecd; 
+            }
+
+            if (r.startDate && r.contractDuration) {
+                const sd = new Date(r.startDate);
+                if (!isNaN(sd.getTime())) {
+                    let dm = parseInt(r.contractDuration) || 0;
+                    sd.setMonth(sd.getMonth() + dm);
+                    r.endDate = sd.toISOString().split('T')[0];
                 }
             }
+            saveRecords(); render(); return;
         }
 
         if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
@@ -1332,6 +1355,14 @@
                 <div class="sec-title" style="margin:0">Contract Lifecycle Management (CLM) - ${r.reportNo}</div>
                 <button class="btn btn-primary" id="clm-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save CLM Updates ✔</button>
             </div>
+            
+            <div class="grid g4" style="margin-bottom:14px">
+                ${field('Expected Completion Date (ECD)', 'ecd', r.ecd, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
+                ${field('Contract Duration', 'contractDuration', r.contractDuration, 'text', 'readonly style="background:var(--line);cursor:not-allowed"')}
+                ${field('Start Date', 'startDate', r.startDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
+                ${field('End Date', 'endDate', r.endDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
+            </div>
+
             <table class="editrows">
               <thead>
                 <tr>
@@ -1422,10 +1453,10 @@
         }
         return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-vendor" data-id="${c.createdAt}">
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
-            <td>${fmtDate(c)}</td>
+            <td>${c.startDate ? fmtDate({happeningDate: c.startDate}) : '—'}</td>
             <td>${c.title||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
-            <td>${c.ecd ? fmtDate({happeningDate: c.ecd}) : '—'}</td>
+            <td>${c.endDate ? fmtDate({happeningDate: c.endDate}) : '—'}</td>
             <td><span class="status-chip ${latestStatus==='Met'?'chip-done':latestStatus==='Not Met'?'chip-progress':'chip-open'}">${latestStatus}</span></td>
         </tr>`;
     }).join('');
@@ -1433,7 +1464,7 @@
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
         <div class="table-panel" style="padding:0;border:none">
             ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Criteria</th><th>ECD</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            `<table class="list"><thead><tr><th>Record No.</th><th>Start Date</th><th>Title</th><th>Criteria</th><th>End Date</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
@@ -1457,6 +1488,11 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div class="sec-title" style="margin:0">Service Level Agreement (SLA) & Key Performance Indicator (KPI) - ${r.reportNo}</div>
                 <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
+            </div>
+            <div class="grid g4" style="margin-bottom:14px">
+                ${field('Contract Duration', 'contractDuration', r.contractDuration, 'text', 'readonly style="background:var(--line);cursor:not-allowed"')}
+                ${field('Start Date', 'startDate', r.startDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
+                ${field('End Date', 'endDate', r.endDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
             </div>
             <table class="editrows">
               <thead>
@@ -1508,6 +1544,8 @@
         });
     }
   }
+
+  function setByPath(obj, path, value) { const parts = path.split('.'); let cur = obj; for (let i = 0; i < parts.length - 1; i++) { cur = cur[isFinite(parts[i]) ? Number(parts[i]) : parts[i]]; } cur[parts[parts.length - 1]] = value; }
 
   function renderBlank(container, title) {
     container.innerHTML = `<div class="panel" style="min-height:400px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--line-dark); background:transparent;"><div class="empty-state" style="font-size:1.1rem; color:var(--text-sec); font-weight:600">The <b>${title}</b> module is currently blank and under development.</div></div>`;
