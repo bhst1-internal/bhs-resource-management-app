@@ -1034,28 +1034,34 @@
     }
 
     const clm = r.clm || { creation:{}, negotiations:[{}], approval:{}, monitoring:{}, renewal:{} };
-    const clmRow = (label, key, idx, obj, phOwner, phStatus, phRemarks) => `
-    <tr>
-        <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
-            ${label}
-            ${key === 'negotiations' && idx === 0 ? `<br><button class="link-btn" data-act="add-neg" style="font-size:10px;padding:4px 0 0;text-decoration:underline">✚ Add Detail</button>` : ''}
-            ${key === 'negotiations' && idx > 0 ? `<br><button class="link-btn" data-act="rem-neg" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>` : ''}
-        </td>
-        <td><input type="date" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.date" value="${obj.date||''}"/></td>
-        <td><input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
-        <td>${key === 'renewal' ? 
-          `<select data-path="clm.renewal.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)"><option value=""></option><option value="Renewed" ${obj.status==='Renewed'?'selected':''}>Renewed</option><option value="Terminated" ${obj.status==='Terminated'?'selected':''}>Terminated</option><option value="Expired" ${obj.status==='Expired'?'selected':''}>Expired</option></select>` 
-          : `<input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.status" value="${obj.status||''}" placeholder="${phStatus}"/>`}</td>
-        <td><input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.remarks" value="${obj.remarks||''}" placeholder="${phRemarks}"/></td>
-    </tr>`;
+    const clmRow = (label, key, idx, obj, phOwner, statusOpts, phRemarks) => {
+        const pathBase = `clm.${key}${key==='negotiations'?`.${idx}`:''}`;
+        const selOpts = `<option value=""></option>` + statusOpts.map(opt => `<option value="${opt}" ${obj.status===opt?'selected':''}>${opt}</option>`).join('');
+        return `
+        <tr>
+            <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
+                ${label}
+                ${key === 'negotiations' && idx === 0 ? `<br><button class="link-btn" data-act="add-neg" style="font-size:10px;padding:4px 0 0;text-decoration:underline">✚ Add Detail</button>` : ''}
+                ${key === 'negotiations' && idx > 0 ? `<br><button class="link-btn" data-act="rem-neg" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>` : ''}
+            </td>
+            <td><input type="date" data-path="${pathBase}.date" value="${obj.date||''}"/></td>
+            <td><input type="text" data-path="${pathBase}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
+            <td>
+              <select data-path="${pathBase}.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)">
+                ${selOpts}
+              </select>
+            </td>
+            <td><input type="text" data-path="${pathBase}.remarks" value="${obj.remarks||''}" placeholder="${phRemarks}"/></td>
+        </tr>`;
+    };
 
-    let clmHtml = clmRow('1. Creation (Drafting/Authoring)', 'creation', null, clm.creation, 'Author/Drafter', 'Draft Status', 'Doc Ref...');
+    let clmHtml = clmRow('1. Creation (Drafting/Authoring)', 'creation', null, clm.creation, 'Author/Drafter', ['Initial Draft', 'In Progress', 'Internal Review', 'Revisions Required', 'Draft Finalized'], 'Doc Ref...');
     clm.negotiations.forEach((neg, i) => {
-        clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', 'Pending/Agreed', 'Iteration Notes...');
+        clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', ['Pending', 'Agreed'], 'Iteration Notes...');
     });
-    clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', 'Signed/Hold', 'Execution Details...');
-    clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', 'Active/Breach', 'KPIs/SLA...');
-    clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', '', 'Notice Terms...');
+    clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', ['Signed', 'Hold'], 'Execution Details...');
+    clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', ['Active', 'Breach'], 'KPIs/SLA...');
+    clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', ['Renewed', 'Terminated', 'Expired'], 'Notice Terms...');
 
     container.innerHTML = `<div class="form-shell">
         <div class="form-toolbar">
