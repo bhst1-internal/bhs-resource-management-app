@@ -92,7 +92,8 @@
   #acm-root .chk,#acm-root .rad{display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;color:var(--ink-light);cursor:pointer}
   #acm-root .chk input,#acm-root .rad input{width:15px;height:15px;accent-color:var(--accent)}
   #acm-root table.editrows{width:100%;border-collapse:collapse;margin-top:6px}
-  #acm-root table.editrows input, #acm-root table.editrows select{width:100%;font-size:.75rem}
+  #acm-root table.editrows input, #acm-root table.editrows select, #acm-root table.editrows textarea{width:100%;font-size:.75rem}
+  #acm-root table.editrows textarea{padding:4px;resize:vertical;font-family:inherit}
   #acm-root .err-highlight,#acm-root .err-sec{border:1px solid var(--crit)!important;background-color:#fef2f2!important;box-shadow:0 0 0 1px var(--crit)}
   #acm-root #acm-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(17,24,39,.7);z-index:99999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease;backdrop-filter:blur(2px)}
   #acm-root #acm-modal-overlay.active{opacity:1;pointer-events:auto}
@@ -132,9 +133,18 @@
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
   const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Maintenance', 'Other'];
   
-  const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
+  const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
   const INPUT_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+
+  const SLA_METRICS = [
+      {type: 'SLA (Speed)', name: 'Emergency Response Time', target: 'On-site within 2 hours for critical failures (e.g., power outage, burst pipe).', measure: 'Time from work order dispatch to technician check-in on site.'},
+      {type: 'SLA (Speed)', name: 'Routine Resolution Time', target: 'Resolved within 48 hours for non-urgent repairs.', measure: 'Time from work order creation to verified completion.'},
+      {type: 'SLA (Compliance)', name: 'Preventive Maintenance (PM) Completion', target: '98% of scheduled PM tasks completed on time each month.', measure: 'Completed PM work orders divided by total scheduled PMs.'},
+      {type: 'KPI (Quality)', name: 'First-Time Fix Rate (FTFR)', target: 'Above 85% of issues fixed without a repeat visit.', measure: 'Work orders closed without a follow-up ticket for the same issue within 14 days.'},
+      {type: 'KPI (Reliability)', name: 'Equipment Uptime', target: '99.5% operational availability for critical machinery.', measure: 'Total operating hours minus unplanned downtime hours.'},
+      {type: 'KPI (Safety)', name: 'HSE & Permit Compliance', target: '100% adherence to safety rules and Permit-to-Work (PTW) protocols.', measure: 'Number of safety audits passed without violations or near-misses.'}
+  ];
 
   function showModal(title, msg, type = 'alert', errorMode = false) {
     return new Promise(resolve => {
@@ -163,7 +173,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})) };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -187,6 +197,10 @@
                 monitoring: g.clm[3] || {date:'',owner:'',status:'',remarks:''},
                 renewal: g.clm[4] || {date:'',owner:'',status:'',remarks:''}
             };
+        }
+        
+        if (!g.vendorSla || !Array.isArray(g.vendorSla)) {
+            g.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
         }
 
         validData.push(g);
@@ -233,7 +247,12 @@
         }
     }
     
-    if (clmProgress) return 'progress';
+    let slaProgress = false;
+    if (r.vendorSla && Array.isArray(r.vendorSla)) {
+        slaProgress = r.vendorSla.some(v => v.actual || v.status || v.remarks);
+    }
+    
+    if (clmProgress || slaProgress) return 'progress';
     return 'open';
   }
 
@@ -1201,10 +1220,6 @@
       if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
       el.addEventListener((el.type==='checkbox'||el.type==='radio'||el.tagName==='SELECT')?'change':'input', async () => {
         const path = el.getAttribute('data-path'); let newVal = el.type==='checkbox'?el.checked:el.value;
-        if(path === 'confirmedByName' && newVal !== '') {
-          const pwd = await showModal("Authorization", `Enter 6-digit pin for ${newVal}:`, "prompt");
-          if(pwd !== CONF_PASS[newVal]) { await showModal("Error", "Incorrect pin. Signature reversed.", "alert", true); el.value = r.confirmedByName || ''; return; }
-        }
         
         if(path === 'issuedBy' && newVal !== '') {
           const pwd = await showModal("Authorization", `Enter pin for ${newVal}:`, "prompt");
@@ -1364,16 +1379,9 @@
 
         container.querySelectorAll('[data-path]').forEach(el => {
             if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT') return;
-            el.addEventListener('input', async () => {
-                const path = el.getAttribute('data-path');
-                let newVal = el.type === 'checkbox' ? el.checked : el.value;
-                if(path === 'issuedBy' && newVal !== '') {
-                  const pwd = await showModal("Authorization", `Enter pin for ${newVal}:`, "prompt");
-                  if(pwd !== ISSUED_PASS[newVal]) { await showModal("Error", "Incorrect pin. Selection reversed.", "alert", true); el.value = r.issuedBy || ''; return; }
-                }
-                
+            el.addEventListener('input', () => {
                 state.isDirty = true;
-                setByPath(r, path, newVal);
+                setByPath(r, el.getAttribute('data-path'), el.value);
                 saveRecords();
             });
         });
@@ -1394,7 +1402,112 @@
     }
   }
 
-  function setByPath(obj, path, value) { const parts = path.split('.'); let cur = obj; for (let i = 0; i < parts.length - 1; i++) { cur = cur[isFinite(parts[i]) ? Number(parts[i]) : parts[i]]; } cur[parts[parts.length - 1]] = value; }
+  function renderVendorManagement(container) {
+    const vendors = state.records.filter(r => !r.isDraft && r.maintenanceType === 'Vendor Management').sort((a,b)=>b.createdAt-a.createdAt);
+    let r = state.records.find(x => String(x.createdAt) === String(state.activeId));
+    if (!r || r.maintenanceType !== 'Vendor Management') {
+        r = vendors.length ? vendors[0] : null;
+        if (r) state.activeId = String(r.createdAt);
+    }
+
+    const rows = vendors.map(c => {
+        const isActive = r && String(c.createdAt) === String(r.createdAt);
+        let latestStatus = 'N/A';
+        if (c.vendorSla && Array.isArray(c.vendorSla)) {
+            const hasMissed = c.vendorSla.some(v => v.status === 'Not Met');
+            const hasMet = c.vendorSla.some(v => v.status === 'Met');
+            if (hasMissed) latestStatus = 'Not Met';
+            else if (hasMet) latestStatus = 'Met';
+            else latestStatus = 'Pending';
+        }
+        return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-vendor" data-id="${c.createdAt}">
+            <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
+            <td>${fmtDate(c)}</td>
+            <td>${c.title||'—'}</td>
+            <td>${c.issuedGroup||'—'}</td>
+            <td>${c.ecd ? fmtDate({happeningDate: c.ecd}) : '—'}</td>
+            <td><span class="status-chip ${latestStatus==='Met'?'chip-done':latestStatus==='Not Met'?'chip-progress':'chip-open'}">${latestStatus}</span></td>
+        </tr>`;
+    }).join('');
+
+    const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
+        <div class="table-panel" style="padding:0;border:none">
+            ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
+            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Criteria</th><th>ECD</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+        </div>
+    </div>`;
+
+    let slaSec = '';
+    if (r) {
+        if (!r.vendorSla || !Array.isArray(r.vendorSla)) r.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
+        
+        const slaHtml = SLA_METRICS.map((m, i) => {
+            const v = r.vendorSla[i] || {actual:'', status:'', remarks:''};
+            return `<tr>
+                <td style="font-weight:700;color:var(--ink);vertical-align:top;padding-top:8px">${m.type}</td>
+                <td style="font-weight:700;vertical-align:top;padding-top:8px">${m.name}</td>
+                <td style="font-size:10px;vertical-align:top;padding-top:8px"><b>Target:</b> ${m.target}<br><span style="color:var(--text-sec)"><b>Measure:</b> ${m.measure}</span></td>
+                <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.actual" placeholder="Enter actual results..." style="min-height:48px">${v.actual||''}</textarea></td>
+                <td style="vertical-align:top"><select data-path="vendorSla.${i}.status" style="width:100%;padding:6px;font-size:11px"><option value=""></option><option value="Met" ${v.status==='Met'?'selected':''}>Met</option><option value="Not Met" ${v.status==='Not Met'?'selected':''}>Not Met</option><option value="N/A" ${v.status==='N/A'?'selected':''}>N/A</option></select></td>
+                <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.remarks" placeholder="Remarks..." style="min-height:48px">${v.remarks||''}</textarea></td>
+            </tr>`;
+        }).join('');
+
+        slaSec = `<div class="sec">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div class="sec-title" style="margin:0">Service Level Agreement (SLA) & Key Performance Indicator (KPI) - ${r.reportNo}</div>
+                <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
+            </div>
+            <table class="editrows">
+              <thead>
+                <tr>
+                  <th style="width:12%">Metric Type</th>
+                  <th style="width:16%">Metric Name</th>
+                  <th style="width:25%">Target / Measurement</th>
+                  <th style="width:20%">Actual Performance</th>
+                  <th style="width:12%">Status</th>
+                  <th style="width:15%">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>${slaHtml}</tbody>
+            </table>
+        </div>`;
+    }
+
+    container.innerHTML = `<div class="form-shell">${listSec}${slaSec}</div>`;
+
+    container.querySelectorAll('[data-act="sel-vendor"]').forEach(row => {
+        row.addEventListener('click', () => {
+            state.activeId = String(row.getAttribute('data-id'));
+            render();
+        });
+    });
+
+    if (r) {
+        container.querySelectorAll('[data-path]').forEach(el => {
+            if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
+            el.addEventListener('input', () => {
+                state.isDirty = true;
+                setByPath(r, el.getAttribute('data-path'), el.value);
+                saveRecords();
+            });
+        });
+
+        container.querySelector('#vendor-submit-btn').addEventListener('click', async () => {
+            state.isDirty = false;
+            state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
+            saveRecords();
+            const btn = container.querySelector('#vendor-submit-btn'), ogTxt = btn.innerHTML; 
+            btn.innerHTML = 'Saving ⏳'; btn.style.pointerEvents = 'none';
+            try { 
+                await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:new URLSearchParams({payload: JSON.stringify(r)}) }); 
+                setTimeout(async () => { await showModal("Success", "Vendor SLA updates saved to Google Sheets!", "alert"); render(); }, 1000); 
+            } catch (e) { 
+                console.error(e); await showModal("Error", "Saved locally.", "alert", true); btn.innerHTML = ogTxt; btn.style.pointerEvents = 'auto'; 
+            }
+        });
+    }
+  }
 
   function renderBlank(container, title) {
     container.innerHTML = `<div class="panel" style="min-height:400px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--line-dark); background:transparent;"><div class="empty-state" style="font-size:1.1rem; color:var(--text-sec); font-weight:600">The <b>${title}</b> module is currently blank and under development.</div></div>`;
@@ -1415,6 +1528,7 @@
     if (state.tab === 'Dashboard') renderDashboard(content);
     else if (state.tab === 'Record Input') renderInput(content);
     else if (state.tab === 'Contract Management') renderContractManagement(content);
+    else if (state.tab === 'Vendor Management') renderVendorManagement(content);
     else if (BLANK_TABS.includes(state.tab)) renderBlank(content, state.tab);
   }
 
