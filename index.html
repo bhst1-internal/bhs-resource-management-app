@@ -130,8 +130,9 @@
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
   const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Other'];
   
-  const BLANK_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
-  const ALL_TABS = ['Dashboard', 'Record Input', ...BLANK_TABS];
+  const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
+  const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+  const INPUT_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
 
   function showModal(title, msg, type = 'alert', errorMode = false) {
     return new Promise(resolve => {
@@ -863,6 +864,36 @@
 
       const customBgPlugin = { id:'customCanvasBackgroundColor', beforeDraw:(c, a, o)=>{ const ctx=c.ctx; ctx.save(); ctx.globalCompositeOperation='destination-over'; ctx.fillStyle=o.color||'#ffffff'; ctx.fillRect(0,0,c.width,c.height); ctx.restore(); } };
 
+      const verticalLinePlugin = {
+        id: 'verticalLine',
+        afterDraw: chart => {
+          const xIndex = chart.config.options.plugins?.verticalLine?.index;
+          if (xIndex === undefined || xIndex <= 0 || xIndex >= chart.data.labels.length) return;
+          const ctx = chart.ctx;
+          const xAxis = chart.scales.x;
+          const yAxis = chart.scales.y;
+          const leftTick = xAxis.getPixelForTick(xIndex - 1);
+          const rightTick = xAxis.getPixelForTick(xIndex);
+          if (leftTick === undefined || rightTick === undefined) return;
+          const xPos = (leftTick + rightTick) / 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(xPos, yAxis.top);
+          ctx.lineTo(xPos, yAxis.bottom);
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = '#9ca3af';
+          ctx.stroke();
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText('CATEGORY', (xAxis.left + xPos) / 2, yAxis.top + 5);
+          ctx.fillText('TYPE', (xPos + xAxis.right) / 2, yAxis.top + 5);
+          ctx.restore();
+        }
+      };
+
       const tlCtx = document.getElementById('acm-timeline-chart'); 
       if(tlCtx) {
           if (timelineChart) timelineChart.destroy();
@@ -1033,36 +1064,6 @@
         </div>`;
     }
 
-    const clm = r.clm || { creation:{}, negotiations:[{}], approval:{}, monitoring:{}, renewal:{} };
-    const clmRow = (label, key, idx, obj, phOwner, statusOpts, phRemarks) => {
-        const pathBase = `clm.${key}${key==='negotiations'?`.${idx}`:''}`;
-        const selOpts = `<option value=""></option>` + statusOpts.map(opt => `<option value="${opt}" ${obj.status===opt?'selected':''}>${opt}</option>`).join('');
-        return `
-        <tr>
-            <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
-                ${label}
-                ${key === 'negotiations' && idx === 0 ? `<br><button class="link-btn" data-act="add-neg" style="font-size:10px;padding:4px 0 0;text-decoration:underline">✚ Add Detail</button>` : ''}
-                ${key === 'negotiations' && idx > 0 ? `<br><button class="link-btn" data-act="rem-neg" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>` : ''}
-            </td>
-            <td><input type="date" data-path="${pathBase}.date" value="${obj.date||''}"/></td>
-            <td><input type="text" data-path="${pathBase}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
-            <td>
-              <select data-path="${pathBase}.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)">
-                ${selOpts}
-              </select>
-            </td>
-            <td><input type="text" data-path="${pathBase}.remarks" value="${obj.remarks||''}" placeholder="${phRemarks}"/></td>
-        </tr>`;
-    };
-
-    let clmHtml = clmRow('1. Creation (Drafting/Authoring)', 'creation', null, clm.creation, 'Author/Drafter', ['Initial Draft', 'In Progress', 'Internal Review', 'Revisions Required', 'Draft Finalized'], 'Doc Ref...');
-    clm.negotiations.forEach((neg, i) => {
-        clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', ['Pending', 'Agreed'], 'Iteration Notes...');
-    });
-    clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', ['Signed', 'Hold'], 'Execution Details...');
-    clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', ['Active', 'Breach'], 'KPIs/SLA...');
-    clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', ['Renewed', 'Terminated', 'Expired'], 'Notice Terms...');
-
     container.innerHTML = `<div class="form-shell">
         <div class="form-toolbar">
             <div class="rec-select"><span style="font-weight:700">Record No.:</span><select class="recpick" id="acm-recpick">${options}</select></div>
@@ -1072,7 +1073,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,BLANK_TABS)}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date','happeningDate',r.happeningDate,'date')}
@@ -1098,25 +1099,6 @@
             <div class="sec-title">Detail Description</div>
             ${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}
         </div>
-        
-        <div class="sec">
-          <div class="sec-title">Contract Lifecycle Management (CLM)</div>
-          <table class="editrows">
-            <thead>
-              <tr>
-                <th style="width:24%">CLM Stage</th>
-                <th style="width:14%">Date</th>
-                <th style="width:18%">PIC / Owner</th>
-                <th style="width:16%">Status / Outcome</th>
-                <th style="width:28%">Remarks / Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${clmHtml}
-            </tbody>
-          </table>
-        </div>
-
         <div class="sec">
             <div class="sec-title">Past Record</div>
             <table class="editrows">
@@ -1147,25 +1129,6 @@
         fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:new URLSearchParams({payload: JSON.stringify({action:'delete', createdAt:r.createdAt})}) }).catch(console.error);
         state.records = state.records.filter(x => String(x.createdAt) !== String(r.createdAt)); state.activeId = state.records.length ? state.records[0].createdAt : null; state.showErrors = false; state.isDirty = false; saveRecords(); render(); await showModal("Deleted", "Record removed successfully.", "alert");
       } else if(pass !== null) await showModal("Error", "Incorrect password. Deletion cancelled.", "alert", true);
-    });
-    
-    container.querySelectorAll('[data-act="add-neg"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            r.clm.negotiations.push({date:'',owner:'',status:'',remarks:''});
-            state.isDirty = true;
-            render();
-        });
-    });
-
-    container.querySelectorAll('[data-act="rem-neg"]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const idx = parseInt(btn.getAttribute('data-idx'));
-            r.clm.negotiations.splice(idx, 1);
-            state.isDirty = true;
-            render();
-        });
     });
     
     container.querySelector('#acm-submit-btn').addEventListener('click', async () => {
@@ -1249,6 +1212,147 @@
     });
   }
 
+  function renderContractManagement(container) {
+    const contracts = state.records.filter(r => !r.isDraft && r.maintenanceType === 'Contract Management').sort((a,b)=>b.createdAt-a.createdAt);
+    let r = state.records.find(x => String(x.createdAt) === String(state.activeId));
+    if (!r || r.maintenanceType !== 'Contract Management') {
+        r = contracts.length ? contracts[0] : null;
+        if (r) state.activeId = String(r.createdAt);
+    }
+
+    const rows = contracts.map(c => {
+        const isActive = r && String(c.createdAt) === String(r.createdAt);
+        let latestStatus = 'N/A';
+        if (c.clm) {
+           if (c.clm.renewal && c.clm.renewal.status) latestStatus = c.clm.renewal.status;
+           else if (c.clm.monitoring && c.clm.monitoring.status) latestStatus = c.clm.monitoring.status;
+           else if (c.clm.approval && c.clm.approval.status) latestStatus = c.clm.approval.status;
+           else if (c.clm.negotiations && c.clm.negotiations.length && c.clm.negotiations[c.clm.negotiations.length-1].status) latestStatus = c.clm.negotiations[c.clm.negotiations.length-1].status;
+           else if (c.clm.creation && c.clm.creation.status) latestStatus = c.clm.creation.status;
+        }
+        return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-contract" data-id="${c.createdAt}">
+            <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
+            <td>${fmtDate(c)}</td>
+            <td>${c.title||'—'}</td>
+            <td>${c.issuedGroup||'—'}</td>
+            <td><span class="status-chip chip-open">${latestStatus}</span></td>
+        </tr>`;
+    }).join('');
+
+    const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Contract List</div>
+        <div class="table-panel" style="padding:0;border:none">
+            ${contracts.length === 0 ? `<div class="empty-state">No Contract Management records found. Create one in Record Input.</div>` : 
+            `<table class="list"><thead><tr><th>Record No.</th><th>Date</th><th>Title</th><th>Criteria</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+        </div>
+    </div>`;
+
+    let clmSec = '';
+    if (r) {
+        const clm = r.clm || { creation:{}, negotiations:[{}], approval:{}, monitoring:{}, renewal:{} };
+        const clmRow = (label, key, idx, obj, phOwner, statusOpts, phRemarks) => {
+            const pathBase = `clm.${key}${key==='negotiations'?`.${idx}`:''}`;
+            const selOpts = `<option value=""></option>` + statusOpts.map(opt => `<option value="${opt}" ${obj.status===opt?'selected':''}>${opt}</option>`).join('');
+            return `
+            <tr>
+                <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
+                    ${label}
+                    ${key === 'negotiations' && idx === 0 ? `<br><button class="link-btn" data-act="add-neg" style="font-size:10px;padding:4px 0 0;text-decoration:underline">✚ Add Detail</button>` : ''}
+                    ${key === 'negotiations' && idx > 0 ? `<br><button class="link-btn" data-act="rem-neg" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>` : ''}
+                </td>
+                <td><input type="date" data-path="${pathBase}.date" value="${obj.date||''}"/></td>
+                <td><input type="text" data-path="${pathBase}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
+                <td>
+                  <select data-path="${pathBase}.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)">
+                    ${selOpts}
+                  </select>
+                </td>
+                <td><input type="text" data-path="${pathBase}.remarks" value="${obj.remarks||''}" placeholder="${phRemarks}"/></td>
+            </tr>`;
+        };
+
+        let clmHtml = clmRow('1. Creation (Drafting/Authoring)', 'creation', null, clm.creation, 'Author/Drafter', ['Initial Draft', 'In Progress', 'Internal Review', 'Revisions Required', 'Draft Finalized'], 'Doc Ref...');
+        clm.negotiations.forEach((neg, i) => {
+            clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', ['Pending', 'Agreed'], 'Iteration Notes...');
+        });
+        clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', ['Signed', 'Hold'], 'Execution Details...');
+        clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', ['Active', 'Breach'], 'KPIs/SLA...');
+        clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', ['Renewed', 'Terminated', 'Expired'], 'Notice Terms...');
+
+        clmSec = `<div class="sec">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <div class="sec-title" style="margin:0">Contract Lifecycle Management (CLM) - ${r.reportNo}</div>
+                <button class="btn btn-primary" id="clm-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save CLM Updates ✔</button>
+            </div>
+            <table class="editrows">
+              <thead>
+                <tr>
+                  <th style="width:24%">CLM Stage</th>
+                  <th style="width:14%">Date</th>
+                  <th style="width:18%">PIC / Owner</th>
+                  <th style="width:16%">Status / Outcome</th>
+                  <th style="width:28%">Remarks / Details</th>
+                </tr>
+              </thead>
+              <tbody>${clmHtml}</tbody>
+            </table>
+        </div>`;
+    }
+
+    container.innerHTML = `<div class="form-shell">${listSec}${clmSec}</div>`;
+
+    container.querySelectorAll('[data-act="sel-contract"]').forEach(row => {
+        row.addEventListener('click', () => {
+            state.activeId = String(row.getAttribute('data-id'));
+            render();
+        });
+    });
+
+    if (r) {
+        container.querySelectorAll('[data-act="add-neg"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if(!r.clm) r.clm = { creation:{}, negotiations:[{}], approval:{}, monitoring:{}, renewal:{} };
+                r.clm.negotiations.push({date:'',owner:'',status:'',remarks:''});
+                state.isDirty = true;
+                render();
+            });
+        });
+
+        container.querySelectorAll('[data-act="rem-neg"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const idx = parseInt(btn.getAttribute('data-idx'));
+                r.clm.negotiations.splice(idx, 1);
+                state.isDirty = true;
+                render();
+            });
+        });
+
+        container.querySelectorAll('[data-path]').forEach(el => {
+            if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT') return;
+            el.addEventListener('input', () => {
+                state.isDirty = true;
+                setByPath(r, el.getAttribute('data-path'), el.value);
+                saveRecords();
+            });
+        });
+
+        container.querySelector('#clm-submit-btn').addEventListener('click', async () => {
+            state.isDirty = false;
+            state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
+            saveRecords();
+            const btn = container.querySelector('#clm-submit-btn'), ogTxt = btn.innerHTML; 
+            btn.innerHTML = 'Saving ⏳'; btn.style.pointerEvents = 'none';
+            try { 
+                await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:new URLSearchParams({payload: JSON.stringify(r)}) }); 
+                setTimeout(async () => { await showModal("Success", "CLM updates saved to Google Sheets!", "alert"); render(); }, 1000); 
+            } catch (e) { 
+                console.error(e); await showModal("Error", "Saved locally.", "alert", true); btn.innerHTML = ogTxt; btn.style.pointerEvents = 'auto'; 
+            }
+        });
+    }
+  }
+
   function setByPath(obj, path, value) { const parts = path.split('.'); let cur = obj; for (let i = 0; i < parts.length - 1; i++) { cur = cur[isFinite(parts[i]) ? Number(parts[i]) : parts[i]]; } cur[parts[parts.length - 1]] = value; }
 
   function renderBlank(container, title) {
@@ -1260,7 +1364,7 @@
     ROOT.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', async () => { 
         const targetTab = b.getAttribute('data-tab');
-        if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
+        if (state.tab !== 'Dashboard' && targetTab !== state.tab && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
         state.tab = targetTab; render(); 
       });
     });
@@ -1269,6 +1373,7 @@
     
     if (state.tab === 'Dashboard') renderDashboard(content);
     else if (state.tab === 'Record Input') renderInput(content);
+    else if (state.tab === 'Contract Management') renderContractManagement(content);
     else if (BLANK_TABS.includes(state.tab)) renderBlank(content, state.tab);
   }
 
