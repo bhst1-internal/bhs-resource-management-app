@@ -175,7 +175,6 @@
         if (!g.createdAt || String(g.createdAt).trim() === '') return;
         g.happeningDate = cleanDate(g.happeningDate);
         
-        // Migrate old CLM Array to new CLM Object logic safely
         if (g.clm && Array.isArray(g.clm)) {
             g.clm = {
                 creation: g.clm[0] || {date:'',owner:'',status:'',remarks:''},
@@ -716,7 +715,7 @@
         const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
         const isO = document.querySelector('#timeline-custom-legend .leg-chk[value="2"]')?.checked ?? true;
         window.fullViewChart.setDatasetVisibility(0, isD);
-        window.fullViewChart.setVisibility(1, isP);
+        window.fullViewChart.setDatasetVisibility(1, isP);
         window.fullViewChart.setDatasetVisibility(2, isO);
         
         const sDate = document.getElementById('dash-start').value;
@@ -1067,7 +1066,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,BLANK_TABS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date','happeningDate',r.happeningDate,'date')}
