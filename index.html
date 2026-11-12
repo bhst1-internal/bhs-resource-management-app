@@ -135,7 +135,8 @@
   
   const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
-  const INPUT_TABS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+  
+  const CLASSIFICATION_OPTS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
 
   const SLA_METRICS = [
       {type: 'SLA (Speed)', name: 'Emergency Response Time', target: 'On-site within 2 hours for critical failures (e.g., power outage, burst pipe).', measure: 'Time from work order dispatch to technician check-in on site.'},
@@ -188,7 +189,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: 'Contract Management', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [] };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [] };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -1131,11 +1132,13 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,CLASSIFICATION_OPTS)}
             </div>
-            <div class="grid g3" style="margin-top:10px">
+            <div class="grid g2" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
                 ${selectField('Issued By','issuedBy',r.issuedBy,ISSUED_NAMES)}
+            </div>
+            <div class="grid g1" style="margin-top:10px">
                 ${groupField('Criteria','issuedGroup',igBase,igOther,true)}
             </div>
         </div>
@@ -1156,6 +1159,18 @@
                 ${field('Expected Completion Date (ECD)', 'ecd', r.ecd, 'date')}
             </div>
         </div>
+        
+        <div class="sec" id="sec-contract-dates">
+            <div class="sec-title">Contract Start - End Date</div>
+            <div class="radio-row">
+                ${['6 months', '12 months', '18 months', '24 months'].map(opt => radio('contractDuration', opt, opt, r.contractDuration === opt, 'contractDuration')).join('')}
+            </div>
+            <div class="grid g2" style="margin-top:12px">
+                ${field('Start Date', 'startDate', r.startDate, 'date')}
+                ${field('End Date', 'endDate', r.endDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
+            </div>
+        </div>
+
         <div class="sec">
             <div class="sec-title">Detail Description</div>
             ${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}
@@ -1182,6 +1197,7 @@
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
+      if(!checkReq(r.maintenanceType)) errs.push("[Classification] Classification");
       
       let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
       let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
@@ -1247,16 +1263,30 @@
 
         state.isDirty = true; setByPath(r, path, newVal);
         
-        if (path === 'happeningDate' || path === 'urgency') {
-            if (r.happeningDate && r.urgency) {
-                const baseDate = new Date(r.happeningDate);
-                if (!isNaN(baseDate.getTime())) {
-                    let m = parseInt(r.urgency) || 0;
-                    baseDate.setMonth(baseDate.getMonth() + m);
-                    r.ecd = baseDate.toISOString().split('T')[0];
-                    r.startDate = r.ecd; 
+        if (['happeningDate', 'urgency', 'ecd', 'startDate', 'contractDuration'].includes(path)) {
+            if (path === 'happeningDate' || path === 'urgency') {
+                if (r.happeningDate && r.urgency) {
+                    const baseDate = new Date(r.happeningDate);
+                    if (!isNaN(baseDate.getTime())) {
+                        let m = parseInt(r.urgency) || 0;
+                        baseDate.setMonth(baseDate.getMonth() + m);
+                        r.ecd = baseDate.toISOString().split('T')[0];
+                        r.startDate = r.ecd; 
+                    }
+                }
+            } else if (path === 'ecd') {
+                r.startDate = r.ecd; 
+            }
+
+            if (r.startDate && r.contractDuration) {
+                const sd = new Date(r.startDate);
+                if (!isNaN(sd.getTime())) {
+                    let dm = parseInt(r.contractDuration) || 0;
+                    sd.setMonth(sd.getMonth() + dm);
+                    r.endDate = sd.toISOString().split('T')[0];
                 }
             }
+            saveRecords(); render(); return;
         }
 
         if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
@@ -1275,9 +1305,9 @@
   }
 
   function renderContractManagement(container) {
-    const contracts = state.records.filter(r => !r.isDraft && r.maintenanceType === 'Contract Management').sort((a,b)=>b.createdAt-a.createdAt);
+    const contracts = state.records.filter(r => !r.isDraft).sort((a,b)=>b.createdAt-a.createdAt);
     let r = state.records.find(x => String(x.createdAt) === String(state.activeId));
-    if (!r || r.maintenanceType !== 'Contract Management') {
+    if (!r) {
         r = contracts.length ? contracts[0] : null;
         if (r) state.activeId = String(r.createdAt);
     }
@@ -1296,6 +1326,7 @@
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
             <td>${fmtDate(c)}</td>
             <td>${c.title||'—'}</td>
+            <td>${c.maintenanceType||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
             <td>${c.ecd ? fmtDate({happeningDate: c.ecd}) : '—'}</td>
             <td><span class="status-chip chip-open">${latestStatus}</span></td>
@@ -1304,8 +1335,8 @@
 
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Contract List</div>
         <div class="table-panel" style="padding:0;border:none">
-            ${contracts.length === 0 ? `<div class="empty-state">No Contract Management records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Criteria</th><th>ECD</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            ${contracts.length === 0 ? `<div class="empty-state">No records found. Create one in Record Input.</div>` : 
+            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Classification</th><th>Criteria</th><th>ECD</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
