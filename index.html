@@ -128,7 +128,7 @@
   const URGENCY = { '1month':'1 month', '3months':'3 months', '6months':'6 months', '12months':'12 months' };
   const URGENCY_MS = { '1month': 30*86400000, '3months': 90*86400000, '6months': 180*86400000, '12months': 365*86400000 };
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
-  const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Other'];
+  const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Maintenance', 'Other'];
   
   const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
@@ -222,12 +222,6 @@
   }
 
   function getStatus(r) {
-    const f = r.flags || {};
-    const checklistComplete = f.createNotification || f.createWorkOrder || f.releaseWorkOrder || f.gmps || f.timeConfirmation || f.teco || f.businessCompletion;
-    const confirmValid = checkReq(r.confirmedByName);
-    const signOffComplete = (r.doneByName || '').trim().length >= 3 && (r.checkByName || '').trim().length >= 3 && confirmValid;
-    if (checklistComplete && signOffComplete) return 'done';
-    
     let clmProgress = false;
     if (r.clm) {
         if (Array.isArray(r.clm)) {
@@ -237,7 +231,7 @@
         }
     }
     
-    if (confirmValid || r.doneByName || r.checkByName || clmProgress) return 'progress';
+    if (clmProgress) return 'progress';
     return 'open';
   }
 
@@ -991,7 +985,7 @@
     
     if (igBase) {
         if(!checkReq(r.lineEquipment)) container.querySelector(`[data-path="lineEquipment"]`)?.classList.add('err-highlight');
-        let needsEquipNo = igBase !== 'Other';
+        let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
         let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
         
         if (needsEquipNo && !checkReq(r.equipNo)) container.querySelector(`[data-path="equipNo"]`)?.classList.add('err-highlight');
@@ -1071,6 +1065,11 @@
             ${selectField(curCat, 'lineEquipment', r.lineEquipment, l1Opts)}
             ${field('Remarks', 'equipNo', r.equipNo)}
         </div>`;
+    } else if (curCat === 'Maintenance') {
+        dynamicSection = `<div class="grid g2" style="margin-top:10px">
+            ${field('Vendor', 'lineEquipment', r.lineEquipment)}
+            ${field('Remarks', 'equipNo', r.equipNo)}
+        </div>`;
     } else if (curCat === 'Other') {
         dynamicSection = `<div class="grid g1" style="margin-top:10px">
             ${field(curCat, 'lineEquipment', r.lineEquipment)}
@@ -1121,22 +1120,6 @@
             <div class="sec-title">Detail Description</div>
             ${field('Describe the detail description','reasonDetail',r.reasonDetail,'textarea')}
         </div>
-        <div class="sec">
-            <div class="sec-title">Past Record</div>
-            <table class="editrows">
-                <thead><tr><th>No.</th><th>Item/Equipment name</th><th>Specification</th><th>Part</th><th>Qty</th><th>Dismantle part status</th><th>SAP No / Others</th></tr></thead>
-                <tbody>${(r.parts||[]).map((p,i)=>`<tr><td style="width:30px">${i+1}</td><td><input type="text" data-path="parts.${i}.item" value="${p.item||''}"/></td><td><input type="text" data-path="parts.${i}.spec" value="${p.spec||''}"/></td><td><input type="text" data-path="parts.${i}.part" value="${p.part||''}"/></td><td><input type="text" data-path="parts.${i}.qty" value="${p.qty||''}"/></td><td><input type="text" data-path="parts.${i}.dismantle" value="${p.dismantle||''}"/></td><td><input type="text" data-path="parts.${i}.sap" value="${p.sap||''}"/></td></tr>`).join('')}</tbody>
-            </table>
-        </div>
-        <div class="sec">
-            <div class="sec-title">Completion Checklist</div>
-            <div class="check-row">${checkbox('Create Notification',(r.flags||{}).createNotification,'flags.createNotification')}${checkbox('Create Work Order',(r.flags||{}).createWorkOrder,'flags.createWorkOrder')}${checkbox('Release Work Order',(r.flags||{}).releaseWorkOrder,'flags.releaseWorkOrder')}${checkbox('GMPS',(r.flags||{}).gmps,'flags.gmps')}</div>
-            <div class="check-row" style="margin-top:8px">${checkbox('Time Confirmation',(r.flags||{}).timeConfirmation,'flags.timeConfirmation')}${checkbox('TECO',(r.flags||{}).teco,'flags.teco')}${checkbox('Business Completion',(r.flags||{}).businessCompletion,'flags.businessCompletion')}</div>
-        </div>
-        <div class="sec">
-            <div class="sec-title">Sign-off</div>
-            <div class="grid g3">${field('Done By (TECH)','doneByName',r.doneByName)}${field('Check By (TO/SP)','checkByName',r.checkByName)}${selectField('Confirmed By (TE/E/SE)','confirmedByName',r.confirmedByName,CONF_NAMES)}</div>
-        </div>
     </div>`;
 
     updateHighlights(container, r);
@@ -1160,7 +1143,7 @@
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
       
-      let needsEquipNo = igBase !== 'Other';
+      let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
       let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
       if(!checkReq(r.title) || !checkReq(r.area) || !checkReq(r.subArea) || !checkReq(r.areaNo)) {
          errs.push("[Title & Criteria Details] Title and Area fields are required");
@@ -1223,7 +1206,6 @@
         
         state.isDirty = true; setByPath(r, path, newVal);
         
-        // Auto-calculate ECD
         if (path === 'happeningDate' || path === 'urgency') {
             if (r.happeningDate && r.urgency) {
                 const baseDate = new Date(r.happeningDate);
