@@ -92,7 +92,7 @@
   #acm-root .chk,#acm-root .rad{display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;color:var(--ink-light);cursor:pointer}
   #acm-root .chk input,#acm-root .rad input{width:15px;height:15px;accent-color:var(--accent)}
   #acm-root table.editrows{width:100%;border-collapse:collapse;margin-top:6px}
-  #acm-root table.editrows input{width:100%;font-size:.75rem}
+  #acm-root table.editrows input, #acm-root table.editrows select{width:100%;font-size:.75rem}
   #acm-root .err-highlight,#acm-root .err-sec{border:1px solid var(--crit)!important;background-color:#fef2f2!important;box-shadow:0 0 0 1px var(--crit)}
   #acm-root #acm-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(17,24,39,.7);z-index:99999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s ease;backdrop-filter:blur(2px)}
   #acm-root #acm-modal-overlay.active{opacity:1;pointer-events:auto}
@@ -160,7 +160,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', timeOfHappening:'', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: Array.from({length:5}, () => ({date:'',owner:'',status:'',remarks:''})), parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, parts: Array.from({length:9}, () => ({ item:'', spec:'', part:'', qty:'', dismantle:'', sap:'' })), flags: { createNotification:false, createWorkOrder:false, releaseWorkOrder:false, gmps:false, timeConfirmation:false, teco:false, businessCompletion:false }, doneByName:'', checkByName:'', confirmedByName:'' };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
@@ -170,13 +170,22 @@
     try { if (window.storage) { const res = await window.storage.get(STORE_KEY, false); if (res && res.value) state.records = JSON.parse(res.value); } } catch (e) { state.records = []; }
     window.syncGoogleSheets = function(googleData) {
       const cleanDate = iso => { if (!iso || typeof iso !== 'string' || !iso.includes('T')) return iso; const d = new Date(iso); if (isNaN(d)) return iso; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
-      const cleanTime = iso => (!iso || typeof iso !== 'string' || !iso.includes('T')) ? iso : new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       let validData = [];
       googleData.forEach(g => {
         if (!g.createdAt || String(g.createdAt).trim() === '') return;
         g.happeningDate = cleanDate(g.happeningDate);
-        g.timeOfHappening = cleanTime(g.timeOfHappening);
-        if (g.clm) g.clm.forEach(c => c.date = cleanDate(c.date));
+        
+        // Migrate old CLM Array to new CLM Object logic safely
+        if (g.clm && Array.isArray(g.clm)) {
+            g.clm = {
+                creation: g.clm[0] || {date:'',owner:'',status:'',remarks:''},
+                negotiations: [ g.clm[1] || {date:'',owner:'',status:'',remarks:''} ],
+                approval: g.clm[2] || {date:'',owner:'',status:'',remarks:''},
+                monitoring: g.clm[3] || {date:'',owner:'',status:'',remarks:''},
+                renewal: g.clm[4] || {date:'',owner:'',status:'',remarks:''}
+            };
+        }
+
         validData.push(g);
       });
       const drafts = state.records.filter(r => r.isDraft);
@@ -207,10 +216,8 @@
   function fmtDate(r) { if (r.happeningDate) { const p = String(r.happeningDate).substring(0, 10).split('-'); if (p.length === 3) return `${p[2]}/${p[1]}/${p[0].slice(-2)}`; } return (!r.dd && !r.mm && !r.yy) ? '—' : `${(r.dd||'--').padStart(2,'0')}/${(r.mm||'--').padStart(2,'0')}/${r.yy||'--'}`; }
   function getTs(iso) { if (iso && typeof iso === 'string') { const p = iso.split('-'); if (p.length === 3) return new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])).getTime(); } return null; }
   function getOldTs(dd, mm, yy) { return (!dd || !mm || !yy) ? null : new Date(parseInt(yy.length === 2 ? ('20' + yy) : yy), parseInt(mm)-1, parseInt(dd)).getTime(); }
-  function getExactTs(dateStr, oldDd, oldMm, oldYy, timeStr) {
-    let t = getTs(dateStr) || getOldTs(oldDd, oldMm, oldYy);
-    if (t && timeStr && typeof timeStr === 'string') { const parts = timeStr.split(':'); if (parts.length >= 2) t += ((parseInt(parts[0], 10) || 0) * 3600000) + ((parseInt(parts[1], 10) || 0) * 60000); }
-    return t;
+  function getExactTs(dateStr, oldDd, oldMm, oldYy) {
+    return getTs(dateStr) || getOldTs(oldDd, oldMm, oldYy);
   }
 
   function getStatus(r) {
@@ -219,7 +226,17 @@
     const confirmValid = checkReq(r.confirmedByName);
     const signOffComplete = (r.doneByName || '').trim().length >= 3 && (r.checkByName || '').trim().length >= 3 && confirmValid;
     if (checklistComplete && signOffComplete) return 'done';
-    if (confirmValid || r.doneByName || r.checkByName || (r.clm && r.clm.some(c=>c.date||c.remarks))) return 'progress';
+    
+    let clmProgress = false;
+    if (r.clm) {
+        if (Array.isArray(r.clm)) {
+            clmProgress = r.clm.some(c => c.date || c.remarks);
+        } else {
+            clmProgress = ['creation','approval','monitoring','renewal'].some(k => r.clm[k]?.date || r.clm[k]?.remarks) || (r.clm.negotiations && r.clm.negotiations.some(n => n.date || n.remarks));
+        }
+    }
+    
+    if (confirmValid || r.doneByName || r.checkByName || clmProgress) return 'progress';
     return 'open';
   }
 
@@ -257,7 +274,7 @@
       if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catCounts[CATS[k]]++; });
     });
     completed.forEach(r => {
-      const t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening);
+      const t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy);
       let t1 = getExactTs(r.updatedAt || r.createdAt);
       if(!t1) t1 = Date.now();
       if(t0 && t1 && t1 >= t0) resTimes.push((t1 - t0) / 86400000); 
@@ -357,12 +374,12 @@
       const progBg = 'rgba(217, 119, 6, 0.45)', progBc = 'rgba(217, 119, 6, 1)';
 
       timelineFiltered.forEach(r => { 
-        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening); 
+        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy); 
         if (t0 && !isNaN(t0) && t0 < globalMinT) globalMinT = t0; 
       });
       
       timelineFiltered.forEach(r => {
-        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy, r.timeOfHappening) || parseInt(r.createdAt, 10); if(isNaN(t0)) t0 = nowTs;
+        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy) || parseInt(r.createdAt, 10); if(isNaN(t0)) t0 = nowTs;
         let statusLogic = getStatus(r);
         let endOfAction = statusLogic === 'done' ? (getExactTs(r.updatedAt || r.createdAt) || nowTs) : nowTs;
         
@@ -699,7 +716,7 @@
         const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
         const isO = document.querySelector('#timeline-custom-legend .leg-chk[value="2"]')?.checked ?? true;
         window.fullViewChart.setDatasetVisibility(0, isD);
-        window.fullViewChart.setDatasetVisibility(1, isP);
+        window.fullViewChart.setVisibility(1, isP);
         window.fullViewChart.setDatasetVisibility(2, isO);
         
         const sDate = document.getElementById('dash-start').value;
@@ -931,7 +948,6 @@
     return `<label class="f">${lbl}<div style="display:flex;gap:6px"><select style="flex:1;min-width:0" data-calc-group="${tKey}" data-part="base"><option value=""></option>${opts.map(o=>`<option value="${o}" ${bVal===o?'selected':''}>${o}</option>`).join('')}</select>${bVal===triggerVal?`<input type="text" style="flex:1;min-width:0" placeholder="${specLabel}" data-calc-group="${tKey}" data-part="vendor" value="${vVal}"/>`:''}</div></label>`; 
   }
   function searchableSelectField(lbl, path, val, opts, lid) { return `<label class="f">${lbl}<input type="text" data-path="${path}" value="${val||''}" list="${lid}" autocomplete="off" placeholder="Type or select..."/><datalist id="${lid}">${opts.map(o=>`<option value="${o}"></option>`).join('')}</datalist></label>`; }
-  function ensureRows(arr, len, tplFn) { arr = arr||[]; while(arr.length < len) arr.push(tplFn()); return arr; }
 
   function updateHighlights(container, r) {
     if (!state.showErrors) return;
@@ -940,13 +956,16 @@
     let igBase = r.issuedGroup || ''; 
     if(igBase.toUpperCase().startsWith('OTHER:')) igBase = 'Other';
     
-    ['happeningDate', 'issuedBy', 'reportNo', 'timeOfHappening', 'title', 'area', 'subArea', 'areaNo', 'lineEquipment'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
+    ['happeningDate', 'issuedBy', 'reportNo', 'title', 'area', 'subArea', 'areaNo'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
     
-    let needsEquipNo = igBase !== 'Other';
-    let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase || 'Conveyor Line');
-    
-    if (needsEquipNo && !checkReq(r.equipNo)) container.querySelector(`[data-path="equipNo"]`)?.classList.add('err-highlight');
-    if (needsConvItem && !checkReq(r.conveyorItem)) container.querySelector(`[data-path="conveyorItem"]`)?.classList.add('err-highlight');
+    if (igBase) {
+        if(!checkReq(r.lineEquipment)) container.querySelector(`[data-path="lineEquipment"]`)?.classList.add('err-highlight');
+        let needsEquipNo = igBase !== 'Other';
+        let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
+        
+        if (needsEquipNo && !checkReq(r.equipNo)) container.querySelector(`[data-path="equipNo"]`)?.classList.add('err-highlight');
+        if (needsConvItem && !checkReq(r.conveyorItem)) container.querySelector(`[data-path="conveyorItem"]`)?.classList.add('err-highlight');
+    }
 
     if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) container.querySelector('[data-path="reasonDetail"]')?.classList.add('err-highlight');
     if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase() === 'OTHER')) container.querySelectorAll('[data-calc-group="issuedGroup"]').forEach(el=>el.classList.add('err-highlight'));
@@ -960,8 +979,6 @@
     let r = getActive();
     if (!r) { r = blankRecord(); r.reportNo = getNextReportNo(); state.records.unshift(r); state.activeId = r.createdAt; state.isDirty = false; }
     if (!state.isDirty) state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
-    r.clm = ensureRows(r.clm, 5, () => ({date:'',owner:'',status:'',remarks:''}));
-    r.parts = ensureRows(r.parts, 9, () => ({item:'',spec:'',part:'',qty:'',dismantle:'',sap:''}));
 
     const options = state.records.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
     
@@ -972,7 +989,7 @@
     const currentLine = r.lineEquipment || '', noOptions = (currentLine && EQUIP_DB[currentLine]) ? Object.keys(EQUIP_DB[currentLine]).sort() : [];
     if(currentLine) noOptions.push('OTHERS');
 
-    let curCat = igBase || 'Conveyor Line'; 
+    let curCat = igBase || ''; 
     let dynamicSection = '';
     
     const l1OptsArea = ['MTB', 'SAT'];
@@ -1009,13 +1026,37 @@
         dynamicSection = `<div class="grid g1" style="margin-top:10px">
             ${field(curCat, 'lineEquipment', r.lineEquipment)}
         </div>`;
-    } else {
+    } else if (curCat === 'Conveyor Line') {
         dynamicSection = `<div class="grid g3" style="margin-top:10px">
             ${searchableSelectField(curCat,'lineEquipment',r.lineEquipment,Object.keys(EQUIP_DB).sort(),'line-list')}
             ${searchableSelectField('No.','equipNo',r.equipNo,noOptions,'no-list')}
             ${field('Conveyor/Item','conveyorItem',r.conveyorItem,'text','readonly style="background:var(--line);cursor:not-allowed"')}
         </div>`;
     }
+
+    const clm = r.clm || { creation:{}, negotiations:[{}], approval:{}, monitoring:{}, renewal:{} };
+    const clmRow = (label, key, idx, obj, phOwner, phStatus, phRemarks) => `
+    <tr>
+        <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
+            ${label}
+            ${key === 'negotiations' && idx === 0 ? `<br><button class="link-btn" data-act="add-neg" style="font-size:10px;padding:4px 0 0;text-decoration:underline">✚ Add Detail</button>` : ''}
+            ${key === 'negotiations' && idx > 0 ? `<br><button class="link-btn" data-act="rem-neg" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>` : ''}
+        </td>
+        <td><input type="date" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.date" value="${obj.date||''}"/></td>
+        <td><input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
+        <td>${key === 'renewal' ? 
+          `<select data-path="clm.renewal.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)"><option value=""></option><option value="Renewed" ${obj.status==='Renewed'?'selected':''}>Renewed</option><option value="Terminated" ${obj.status==='Terminated'?'selected':''}>Terminated</option><option value="Expired" ${obj.status==='Expired'?'selected':''}>Expired</option></select>` 
+          : `<input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.status" value="${obj.status||''}" placeholder="${phStatus}"/>`}</td>
+        <td><input type="text" data-path="clm.${key}${key==='negotiations'?`.${idx}`:''}.remarks" value="${obj.remarks||''}" placeholder="${phRemarks}"/></td>
+    </tr>`;
+
+    let clmHtml = clmRow('1. Creation (Drafting/Authoring)', 'creation', null, clm.creation, 'Author/Drafter', 'Draft Status', 'Doc Ref...');
+    clm.negotiations.forEach((neg, i) => {
+        clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', 'Pending/Agreed', 'Iteration Notes...');
+    });
+    clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', 'Signed/Hold', 'Execution Details...');
+    clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', 'Active/Breach', 'KPIs/SLA...');
+    clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', '', 'Notice Terms...');
 
     container.innerHTML = `<div class="form-shell">
         <div class="form-toolbar">
@@ -1026,7 +1067,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${field('Time','timeOfHappening',r.timeOfHappening,'time')}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date','happeningDate',r.happeningDate,'date')}
@@ -1058,23 +1099,15 @@
           <table class="editrows">
             <thead>
               <tr>
-                <th style="width:22%">CLM Stage</th>
+                <th style="width:24%">CLM Stage</th>
                 <th style="width:14%">Date</th>
                 <th style="width:18%">PIC / Owner</th>
                 <th style="width:16%">Status / Outcome</th>
-                <th style="width:30%">Remarks / Details</th>
+                <th style="width:28%">Remarks / Details</th>
               </tr>
             </thead>
             <tbody>
-              ${['1. Creation (Drafting/Authoring)', '2. Negotiation & Collaboration', '3. Approval & Signature (Execution)', '4. Monitoring & Management', '5. Renewal or Termination'].map((stage, i) => `<tr>
-                <td style="font-size:.7rem;font-weight:700;color:var(--ink)">${stage}</td>
-                <td><input type="date" data-path="clm.${i}.date" value="${(r.clm[i]||{}).date||''}"/></td>
-                <td><input type="text" data-path="clm.${i}.owner" value="${(r.clm[i]||{}).owner||''}" placeholder="${i===0?'Author/Drafter':i===1?'Reviewer/Legal':i===2?'Signatory':i===3?'Contract Manager':'Action Owner'}"/></td>
-                <td>${i===4 ? 
-                  `<select data-path="clm.${i}.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)"><option value=""></option><option value="Renewed" ${(r.clm[i]||{}).status==='Renewed'?'selected':''}>Renewed</option><option value="Terminated" ${(r.clm[i]||{}).status==='Terminated'?'selected':''}>Terminated</option><option value="Expired" ${(r.clm[i]||{}).status==='Expired'?'selected':''}>Expired</option></select>` 
-                  : `<input type="text" data-path="clm.${i}.status" value="${(r.clm[i]||{}).status||''}" placeholder="${i===0?'Draft Status':i===1?'Pending/Agreed':i===2?'Signed/Hold':i===3?'Active/Breach':''}"/>`}</td>
-                <td><input type="text" data-path="clm.${i}.remarks" value="${(r.clm[i]||{}).remarks||''}" placeholder="${i===0?'Doc Ref...':i===1?'Iteration Notes...':i===2?'Execution Details...':i===3?'KPIs/SLA...':'Notice Terms...'}"/></td>
-              </tr>`).join('')}
+              ${clmHtml}
             </tbody>
           </table>
         </div>
@@ -1111,18 +1144,42 @@
       } else if(pass !== null) await showModal("Error", "Incorrect password. Deletion cancelled.", "alert", true);
     });
     
+    container.querySelectorAll('[data-act="add-neg"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            r.clm.negotiations.push({date:'',owner:'',status:'',remarks:''});
+            state.isDirty = true;
+            render();
+        });
+    });
+
+    container.querySelectorAll('[data-act="rem-neg"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const idx = parseInt(btn.getAttribute('data-idx'));
+            r.clm.negotiations.splice(idx, 1);
+            state.isDirty = true;
+            render();
+        });
+    });
+    
     container.querySelector('#acm-submit-btn').addEventListener('click', async () => {
       state.showErrors = true; let errs = [];
       if(!checkReq(r.happeningDate)) errs.push("[Classification] Date");
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
-      if(!checkReq(r.timeOfHappening)) errs.push("[Classification] Time");
       
       let needsEquipNo = igBase !== 'Other';
-      let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase || 'Conveyor Line');
-      if(!checkReq(r.title) || !checkReq(r.area) || !checkReq(r.subArea) || !checkReq(r.areaNo) || !checkReq(r.lineEquipment) || (needsEquipNo && !checkReq(r.equipNo)) || (needsConvItem && !checkReq(r.conveyorItem))) {
-         errs.push("[Title & Criteria Details] All required fields must be filled");
+      let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
+      if(!checkReq(r.title) || !checkReq(r.area) || !checkReq(r.subArea) || !checkReq(r.areaNo)) {
+         errs.push("[Title & Criteria Details] Title and Area fields are required");
+      }
+      
+      if(igBase) {
+          if(!checkReq(r.lineEquipment) || (needsEquipNo && !checkReq(r.equipNo)) || (needsConvItem && !checkReq(r.conveyorItem))) {
+             errs.push("[Title & Criteria Details] Criteria specific fields are required");
+          }
       }
 
       if(!(r.cat1 && Object.keys(CATS).some(k=>r.cat1[k]))) errs.push("[Category] Select at least one category");
