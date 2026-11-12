@@ -124,6 +124,8 @@
   }
   const CONF_PASS = {'Anisah':'134510','Azlan':'111306','Eylia':'131091','Fairus':'123092','Fariz':'134828','Hafizah':'134449','Khairoulnizam':'110143','Samsulnazri':'111289','Zahidah':'131530','Zulkiple':'133513'};
   const CONF_NAMES = Object.keys(CONF_PASS).sort();
+  const ISSUED_PASS = {'Anisah':'134510','Eylia':'131091','Fairus':'123092','Fariz':'134828','Hafizah':'134449','Liana':'119018','Qabsha':'133569','Zulkiple':'133513'};
+  const ISSUED_NAMES = Object.keys(ISSUED_PASS).sort();
   const CATS = { mech:'Mechanical', elec:'Electrical', it:'IT', operation:'Operation', others:'Others' };
   const URGENCY = { '1month':'1 month', '3months':'3 months', '6months':'6 months', '12months':'12 months' };
   const URGENCY_MS = { '1month': 30*86400000, '3months': 90*86400000, '6months': 180*86400000, '12months': 365*86400000 };
@@ -1095,7 +1097,7 @@
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
-                ${selectField('Issued By','issuedBy',r.issuedBy,['Anisah', 'Eylia', 'Fairus', 'Fariz', 'Hafizah', 'Liana', 'Qabsha', 'Zulkiple'])}
+                ${selectField('Issued By','issuedBy',r.issuedBy,ISSUED_NAMES)}
                 ${groupField('Criteria','issuedGroup',igBase,igOther,true)}
             </div>
         </div>
@@ -1204,6 +1206,11 @@
           if(pwd !== CONF_PASS[newVal]) { await showModal("Error", "Incorrect pin. Signature reversed.", "alert", true); el.value = r.confirmedByName || ''; return; }
         }
         
+        if(path === 'issuedBy' && newVal !== '') {
+          const pwd = await showModal("Authorization", `Enter pin for ${newVal}:`, "prompt");
+          if(pwd !== ISSUED_PASS[newVal]) { await showModal("Error", "Incorrect pin. Selection reversed.", "alert", true); el.value = r.issuedBy || ''; return; }
+        }
+
         state.isDirty = true; setByPath(r, path, newVal);
         
         if (path === 'happeningDate' || path === 'urgency') {
@@ -1357,9 +1364,16 @@
 
         container.querySelectorAll('[data-path]').forEach(el => {
             if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT') return;
-            el.addEventListener('input', () => {
+            el.addEventListener('input', async () => {
+                const path = el.getAttribute('data-path');
+                let newVal = el.type === 'checkbox' ? el.checked : el.value;
+                if(path === 'issuedBy' && newVal !== '') {
+                  const pwd = await showModal("Authorization", `Enter pin for ${newVal}:`, "prompt");
+                  if(pwd !== ISSUED_PASS[newVal]) { await showModal("Error", "Incorrect pin. Selection reversed.", "alert", true); el.value = r.issuedBy || ''; return; }
+                }
+                
                 state.isDirty = true;
-                setByPath(r, el.getAttribute('data-path'), el.value);
+                setByPath(r, path, newVal);
                 saveRecords();
             });
         });
