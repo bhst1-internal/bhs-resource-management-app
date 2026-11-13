@@ -1364,13 +1364,18 @@
            else if (c.clm.negotiations && c.clm.negotiations.length && c.clm.negotiations[c.clm.negotiations.length-1].status) latestStatus = c.clm.negotiations[c.clm.negotiations.length-1].status;
            else if (c.clm.creation && c.clm.creation.status) latestStatus = c.clm.creation.status;
         }
+        const vendorDisp = c.vendorNameBase === 'Other' ? (c.vendorNameOther || 'Other') : (c.vendorNameBase || '—');
+        const monitoringCount = c.vendorMonitoring ? c.vendorMonitoring.length : 0;
+        
         return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-contract" data-id="${c.createdAt}">
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
-            <td>${fmtDate(c)}</td>
             <td>${c.title||'—'}</td>
             <td>${c.maintenanceType||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
+            <td>${vendorDisp}</td>
+            <td>${fmtDate(c)}</td>
             <td>${c.ecd ? fmtDate({happeningDate: c.ecd}) : '—'}</td>
+            <td style="text-align:center;font-weight:700;color:var(--ink-light)">${monitoringCount}</td>
             <td><span class="status-chip chip-open">${latestStatus}</span></td>
         </tr>`;
     }).join('');
@@ -1378,7 +1383,7 @@
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Contract List</div>
         <div class="table-panel" style="padding:0;border:none">
             ${contracts.length === 0 ? `<div class="empty-state">No records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Classification</th><th>Criteria</th><th>ECD</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Classification</th><th>Criteria</th><th>Vendor</th><th>Date Issued</th><th>ECD</th><th>Monitoring</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
@@ -1539,11 +1544,14 @@
         else if(latestStatus === 'Met') chipClass = 'chip-done';
         else if(latestStatus === 'Not Met') chipClass = 'chip-crit';
 
+        const vendorDisp = c.vendorNameBase === 'Other' ? (c.vendorNameOther || 'Other') : (c.vendorNameBase || '—');
+
         return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-vendor" data-id="${c.createdAt}">
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
-            <td>${c.startDate ? fmtDate({happeningDate: c.startDate}) : '—'}</td>
             <td>${c.title||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
+            <td>${vendorDisp}</td>
+            <td>${c.startDate ? fmtDate({happeningDate: c.startDate}) : '—'}</td>
             <td>${c.endDate ? fmtDate({happeningDate: c.endDate}) : '—'}</td>
             <td style="text-align:center;font-weight:700;color:var(--ink-light)">${monitoringCount}</td>
             <td><span class="status-chip ${chipClass}">${latestStatus}</span></td>
@@ -1553,7 +1561,7 @@
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
         <div class="table-panel" style="padding:0;border:none">
             ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Start Date</th><th>Title</th><th>Criteria</th><th>End Date</th><th>Monitoring</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Criteria</th><th>Vendor</th><th>Start Date</th><th>End Date</th><th>Monitoring</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
