@@ -105,6 +105,10 @@
   #acm-root #acm-modal-input{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:8px;margin-bottom:18px;font-size:.875rem;font-family:inherit;color:var(--ink);background:var(--input-bg);outline:none;display:none}
   #acm-root #acm-modal-input:focus{border-color:var(--accent)}
   #acm-root #acm-modal-actions{display:flex;justify-content:flex-end;gap:8px}
+
+  /* Custom Hover Tooltip */
+  #acm-custom-tooltip { position: fixed; background: rgba(17, 24, 39, 0.95); color: #fff; padding: 12px; border-radius: 8px; pointer-events: none; font-size: 11px; z-index: 999999; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); line-height: 1.5; white-space: pre-wrap; transition: opacity 0.15s ease; opacity: 0; }
+  #acm-custom-tooltip.show { opacity: 1; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -148,6 +152,13 @@
       {type: 'KPI (Reliability)', name: 'Equipment Uptime', target: '99.5% operational availability for critical machinery.', measure: 'Total operating hours minus unplanned downtime hours.'},
       {type: 'KPI (Safety)', name: 'HSE & Permit Compliance', target: '100% adherence to safety rules and Permit-to-Work (PTW) protocols.', measure: 'Number of safety audits passed without violations or near-misses.'}
   ];
+
+  let customTooltipDiv = document.getElementById('acm-custom-tooltip');
+  if (!customTooltipDiv) {
+      customTooltipDiv = document.createElement('div');
+      customTooltipDiv.id = 'acm-custom-tooltip';
+      document.body.appendChild(customTooltipDiv);
+  }
 
   function showModal(title, msg, type = 'alert', extraArg = false) {
     return new Promise(resolve => {
@@ -396,6 +407,31 @@
       }
   }
 
+  function buildRecordTooltip(r) {
+      let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); 
+      const t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy);
+      let targetStr = '—';
+      if (t0 && URGENCY_MS[r.urgency]) targetStr = new Date(t0 + URGENCY_MS[r.urgency]).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+
+      return `<div style="font-size:13px; font-weight:800; margin-bottom:6px; color:#60a5fa">Record No: ${r.reportNo||'Draft'}</div>` +
+             `<strong>Date Issued:</strong> ${fmtDate(r)}<br/>` +
+             `<strong>Title:</strong> ${r.title||'—'}<br/>` +
+             `<strong>Line/Equipment:</strong> ${r.lineEquipment||'—'}<br/>` +
+             `<strong>No.:</strong> ${r.equipNo||'—'}<br/>` +
+             `<strong>Category:</strong> ${cL.length?cL.join(', '):'—'}<br/>` +
+             `<strong>Urgency:</strong> ${URGENCY[r.urgency]||'—'}<br/>` +
+             `<strong>ECD:</strong> ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'}<br/>` +
+             `<strong>Target (SLA):</strong> ${targetStr}`;
+  }
+
+  function buildMilestoneTooltip(m) {
+      return `<div style="font-size:12px; font-weight:800; margin-bottom:6px; color:#a78bfa">${m.title}</div>` +
+             `<strong>Date:</strong> ${fmtDate({happeningDate: m.dateStr})}<br/>` +
+             `<strong>PIC / Owner:</strong> ${m.pic||'—'}<br/>` +
+             `<strong>Status:</strong> ${m.status||'—'}<br/>` +
+             `<div style="max-width:240px; white-space:normal; margin-top:4px;"><strong>Remarks:</strong> ${m.remarks||'—'}</div>`;
+  }
+
   function updateDashboardUI() {
     const filtered = getFilteredDashboardRecords(), k = computeKPIs(filtered);
     const totalCompletionRate = k.total === 0 ? null : Math.round((k.completedCount / k.total) * 100);
@@ -431,7 +467,7 @@
 
     if (timelineChart) {
       const nowTs = new Date().setHours(23, 59, 59, 999), timelineFiltered = filtered.slice().sort((a,b) => b.createdAt - a.createdAt);
-      const tlLabels = [], dsDone = [], dsProg = [], dsOpen = [];
+      const tlLabels = [], dsDone = [], dsProg = [], dsOpen = [], masterMilestones = [];
       let globalMinT = nowTs, globalMaxT = nowTs;
       
       const doneBg = 'rgba(5, 150, 105, 0.45)', doneBc = 'rgba(5, 150, 105, 1)';
@@ -449,8 +485,6 @@
         
         let totalX = [t0, endOfAction];
         let targetT = t0 + (URGENCY_MS[r.urgency] || 0);
-        if (endOfAction > globalMaxT) globalMaxT = endOfAction;
-        if (targetT > globalMaxT) globalMaxT = targetT;
         
         let labelStr = r.reportNo || 'Draft'; while (tlLabels.includes(labelStr)) labelStr += '\u200B'; 
         tlLabels.push(labelStr);
@@ -459,14 +493,61 @@
         const activeBg = statusLogic === 'done' ? doneBg : (statusLogic === 'progress' ? progBg : 'transparent');
         const activeBc = statusLogic === 'done' ? doneBc : (statusLogic === 'progress' ? progBc : 'transparent');
 
+        const barData = { x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: activeBg, _bc: activeBc };
+        
         if (statusLogic === 'open') {
-            dsTarget.push({ x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: endOfAction });
+            dsTarget.push({ ...barData, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: endOfAction });
         } else {
-            dsTarget.push({ x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: activeBg, _bc: activeBc, _isActionBox: true });
+            dsTarget.push({ ...barData, _isActionBox: true });
         }
+
+        // --- Extract Milestones ---
+        if (r.clm) {
+            const extract = (arr, title) => {
+                if(Array.isArray(arr)) {
+                    arr.forEach(item => {
+                        if(item && item.date) {
+                             const mTs = getTs(item.date);
+                             if (mTs) {
+                                 masterMilestones.push({ y: labelStr, t: mTs, dateStr: item.date, title: title, pic: item.owner, status: item.status, remarks: item.remarks });
+                                 if (mTs > globalMaxT) globalMaxT = mTs;
+                             }
+                        }
+                    });
+                }
+            };
+            extract(r.clm.creation, 'CLM Stage: Creation (Drafting/Authoring)');
+            extract(r.clm.negotiations, 'CLM Stage: Negotiation & Collaboration');
+            extract(r.clm.approval, 'CLM Stage: Approval & Signature (Execution)');
+        }
+        if (r.vendorMonitoring && Array.isArray(r.vendorMonitoring)) {
+            r.vendorMonitoring.forEach(hist => {
+                 if(hist && hist.date) {
+                     const mTs = getTs(hist.date);
+                     if (mTs) {
+                         const hasNotMet = hist.metrics && hist.metrics.some(m => m.status === 'Not Met');
+                         const calcStatus = hasNotMet ? 'Breach' : 'Active';
+                         const pics = [...new Set((hist.metrics || []).map(m => m.pic).filter(x => x && x.trim() !== ''))].join(', ');
+                         const remarks = [...new Set((hist.metrics || []).map(m => m.remarks).filter(x => x && x.trim() !== ''))].join(' | ');
+                         
+                         masterMilestones.push({ y: labelStr, t: mTs, dateStr: hist.date, title: 'Vendor Monitoring History', pic: pics, status: calcStatus, remarks: remarks });
+                         if (mTs > globalMaxT) globalMaxT = mTs;
+                     }
+                 }
+            });
+        }
+        
+        let endTs = r.endDate ? getTs(r.endDate) : null;
+        if (endTs && endTs > globalMaxT) globalMaxT = endTs;
+        if (targetT > globalMaxT) globalMaxT = targetT;
+        if (endOfAction > globalMaxT) globalMaxT = endOfAction;
       });
       
-      timelineChart.data._masterLabels = tlLabels; timelineChart.data._masterDone = dsDone; timelineChart.data._masterProg = dsProg; timelineChart.data._masterOpen = dsOpen;
+      timelineChart.data._masterLabels = tlLabels; 
+      timelineChart.data._masterDone = dsDone; 
+      timelineChart.data._masterProg = dsProg; 
+      timelineChart.data._masterOpen = dsOpen;
+      timelineChart.data._masterMilestones = masterMilestones;
       
       const isD = document.querySelector('#timeline-custom-legend .leg-chk[value="0"]')?.checked ?? true;
       const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
@@ -584,119 +665,126 @@
                 ctx.restore(); 
             } 
           }, {
-            id: 'slaOutline',
-            beforeDatasetsDraw(chart) {
-              const ctx = chart.ctx, xAxis = chart.scales.x;
+            id: 'customTimelineDrawings',
+            afterDatasetsDraw(chart) {
+              const ctx = chart.ctx, xAxis = chart.scales.x, yAxis = chart.scales.y;
               const URG_COLORS = { '1month': '#dc2626', '3months': '#d97706', '6months': '#eab308', '12months': '#2563eb' };
-              const drawn = new Set();
+              const drawnUrgency = new Set();
+              
               ctx.save();
               ctx.beginPath();
               ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
               ctx.clip();
 
               chart.data.datasets.forEach((dataset, i) => {
-                const meta = chart.getDatasetMeta(i);
-                if (meta.hidden) return;
-                meta.data.forEach((bar, index) => {
-                  const raw = dataset.data[index];
-                  if (!raw || !raw._r) return;
-                  const memoId = raw._r.createdAt;
-                  if (drawn.has(memoId)) return;
-                  drawn.add(memoId);
-                  const r = raw._r, t0 = raw._totalX[0], durMs = URGENCY_MS[r.urgency] || 0;
-                  if (durMs > 0) {
-                    const targetT = t0 + durMs, startX = xAxis.getPixelForValue(t0), endX = xAxis.getPixelForValue(targetT);
-                    const w = endX - startX, h = bar.height + 8, y = bar.y - h/2;
-                    ctx.beginPath(); ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = URG_COLORS[r.urgency] || '#9ca3af'; 
-                    if(ctx.roundRect) { ctx.roundRect(startX, y, w, h, 6); } else { ctx.rect(startX, y, w, h); }
-                    ctx.stroke();
-                  }
-                });
-              });
-              ctx.restore();
-            }
-          }, {
-            id: 'timelineShapes',
-            afterDatasetsDraw(chart) {
-              const ctx = chart.ctx;
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
-              ctx.clip();
-
-              chart.data.datasets.forEach((dataset, i) => {
-                const meta = chart.getDatasetMeta(i);
-                if (meta.hidden) return;
-                meta.data.forEach((bar, index) => {
-                  const raw = dataset.data[index];
-                  if (!raw || !raw._isOpenLine) return;
-                  const yCenter = bar.y, h = bar.height;
-                  const startX = chart.scales.x.getPixelForValue(raw._t0);
-                  const endX = chart.scales.x.getPixelForValue(raw._t1);
-                  ctx.beginPath(); ctx.moveTo(startX, yCenter); ctx.lineTo(endX, yCenter);
-                  ctx.lineWidth = 2; ctx.strokeStyle = '#9ca3af'; ctx.stroke();
-                  ctx.beginPath(); ctx.arc(startX, yCenter, Math.min(h / 3, 5), 0, 2 * Math.PI);
-                  ctx.fillStyle = '#9ca3af'; ctx.fill();
-                });
-              });
-              ctx.restore();
-            }
-          }, {
-            id: 'milestoneDates',
-            afterDatasetsDraw(chart) {
-              const ctx = chart.ctx;
-              const xAxis = chart.scales.x;
-              ctx.save();
-              ctx.beginPath();
-              ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
-              ctx.clip();
-
-              chart.data.datasets.forEach((dataset, i) => {
+                if (i !== 0 && i !== 1 && i !== 2) return; 
                 const meta = chart.getDatasetMeta(i);
                 if (meta.hidden) return;
                 meta.data.forEach((bar, index) => {
                   const raw = dataset.data[index];
                   if (!raw || !raw._r) return;
                   const r = raw._r;
+                  const yCenter = bar.y, h = bar.height;
                   
-                  const mDates = new Set();
-                  if (r.clm) {
-                      ['creation', 'negotiations', 'approval'].forEach(k => {
-                          if (Array.isArray(r.clm[k])) {
-                              r.clm[k].forEach(item => {
-                                  if (item && item.date) mDates.add(new Date(item.date).getTime());
-                              });
+                  // 1. Gray line for OPEN records (Current baseline logic)
+                  if (raw._isOpenLine) {
+                      const startX = xAxis.getPixelForValue(raw._t0);
+                      const endX = xAxis.getPixelForValue(raw._t1);
+                      ctx.beginPath(); ctx.moveTo(startX, yCenter); ctx.lineTo(endX, yCenter);
+                      ctx.lineWidth = 2; ctx.strokeStyle = '#9ca3af'; ctx.stroke();
+                      ctx.beginPath(); ctx.arc(startX, yCenter, Math.min(h / 3, 5), 0, 2 * Math.PI);
+                      ctx.fillStyle = '#9ca3af'; ctx.fill();
+                  }
+
+                  // 2. Urgency Dashed Box (Procurement Phase)
+                  const memoId = r.createdAt;
+                  if (!drawnUrgency.has(memoId)) {
+                      drawnUrgency.add(memoId);
+                      const t0 = raw._totalX[0], durMs = URGENCY_MS[r.urgency] || 0;
+                      if (durMs > 0) {
+                        const targetT = t0 + durMs, startX = xAxis.getPixelForValue(t0), endX = xAxis.getPixelForValue(targetT);
+                        const w = endX - startX, boxH = h + 8, boxY = yCenter - boxH/2;
+                        ctx.beginPath(); ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = URG_COLORS[r.urgency] || '#9ca3af'; 
+                        if(ctx.roundRect) { ctx.roundRect(startX, boxY, w, boxH, 6); } else { ctx.rect(startX, boxY, w, boxH); }
+                        ctx.stroke();
+                      }
+                      
+                      // 3. Contract Duration Dashed Box
+                      let startTs = r.startDate ? getTs(r.startDate) : null;
+                      let endTs = r.endDate ? getTs(r.endDate) : null;
+                      if (startTs && endTs) {
+                          const sx = xAxis.getPixelForValue(startTs);
+                          const ex = xAxis.getPixelForValue(endTs);
+                          const w = ex - sx;
+                          ctx.beginPath();
+                          ctx.setLineDash([4, 4]);
+                          ctx.lineWidth = 1.5;
+                          ctx.strokeStyle = '#8b5cf6'; // Purple
+                          ctx.strokeRect(sx, yCenter - (h/2 + 6), w, h + 12);
+                      }
+
+                      // 4. Contract Execution Solid Bar (Overlay)
+                      let signedTs = null;
+                      if (r.clm && Array.isArray(r.clm.approval)) {
+                          const signedItem = r.clm.approval.slice().reverse().find(a => a.status === 'Signed');
+                          if (signedItem && signedItem.date) signedTs = getTs(signedItem.date);
+                      }
+                      let ecdTs = r.ecd ? getTs(r.ecd) : null;
+                      
+                      if (signedTs && startTs && endTs) {
+                          let contractStart = (ecdTs && signedTs > ecdTs) ? signedTs : startTs;
+                          const sx = xAxis.getPixelForValue(contractStart);
+                          const ex = xAxis.getPixelForValue(endTs);
+                          const w = ex - sx;
+                          const barH = Math.max(4, h * 0.4); 
+                          
+                          ctx.setLineDash([]);
+                          ctx.fillStyle = 'rgba(59, 130, 246, 0.65)'; 
+                          ctx.strokeStyle = 'rgba(37, 99, 235, 1)';   
+                          ctx.lineWidth = 1;
+                          
+                          ctx.beginPath();
+                          if(ctx.roundRect) {
+                              ctx.roundRect(sx, yCenter - barH/2, w, barH, 4);
+                          } else {
+                              ctx.rect(sx, yCenter - barH/2, w, barH);
+                          }
+                          ctx.fill(); ctx.stroke();
+                      }
+                  }
+                  
+                  // 5. Draw Milestone Circles & Dates
+                  if (chart.data._masterMilestones) {
+                      const milestones = chart.data._masterMilestones.filter(m => m.y === raw.y);
+                      
+                      const uniqueTimes = new Set(); // Prevent exact overlapping visually
+                      
+                      milestones.forEach(m => {
+                          const sx = xAxis.getPixelForValue(m.t);
+                          if (sx >= chart.chartArea.left && sx <= chart.chartArea.right) {
+                              
+                              if (!uniqueTimes.has(m.t)) {
+                                  uniqueTimes.add(m.t);
+                                  ctx.setLineDash([]);
+                                  ctx.beginPath();
+                                  ctx.arc(sx, yCenter, 4.5, 0, 2 * Math.PI);
+                                  ctx.fillStyle = '#ffffff';
+                                  ctx.fill();
+                                  ctx.lineWidth = 2.5;
+                                  ctx.strokeStyle = '#8b5cf6'; 
+                                  ctx.stroke();
+
+                                  const dObj = new Date(m.t);
+                                  const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
+                                  ctx.font = 'bold 9.5px sans-serif';
+                                  ctx.fillStyle = '#4b5563';
+                                  ctx.textAlign = 'center';
+                                  ctx.textBaseline = 'middle';
+                                  ctx.fillText(dateStr, sx, yCenter + (h / 2) + 10);
+                              }
                           }
                       });
                   }
-                  if (r.vendorMonitoring && Array.isArray(r.vendorMonitoring)) {
-                      r.vendorMonitoring.forEach(item => {
-                          if (item && item.date) mDates.add(new Date(item.date).getTime());
-                      });
-                  }
-
-                  ctx.font = 'bold 9px sans-serif';
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'middle';
-
-                  mDates.forEach(t => {
-                     if (isNaN(t)) return;
-                     const startX = xAxis.getPixelForValue(t);
-                     if (startX >= chart.chartArea.left && startX <= chart.chartArea.right) {
-                         ctx.beginPath();
-                         ctx.arc(startX, bar.y, 3, 0, 2 * Math.PI);
-                         ctx.fillStyle = '#ffffff';
-                         ctx.fill();
-                         ctx.lineWidth = 1.5;
-                         ctx.strokeStyle = '#2563eb'; 
-                         ctx.stroke();
-
-                         const dObj = new Date(t);
-                         const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
-                         ctx.fillStyle = '#374151';
-                         ctx.fillText(dateStr, startX, bar.y + (bar.height / 2) + 7);
-                     }
-                  });
                 });
               });
               ctx.restore();
@@ -716,7 +804,7 @@
               plugins: {
                   customCanvasBackgroundColor: { color: '#ffffff' }, 
                   legend: { display:false }, 
-                  tooltip: { backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:11}, padding:12, cornerRadius:8, callbacks:{ title: c => 'Record No: '+(c[0].raw._r.reportNo||'Draft'), label: c => { const r = c.raw._r, stWord = getStatus(r); let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); const t0 = c.raw._totalX[0], t1 = c.raw._totalX[1], targetT = t0 + (URGENCY_MS[r.urgency] || 0), formatOpt = {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false}; const targetStr = URGENCY_MS[r.urgency] ? new Date(targetT).toLocaleDateString(undefined, formatOpt).replace(',', '') : '—'; return [`Date Issued: ${fmtDate(r)}`, `Title: ${r.title||'—'}`, `Line/Equipment: ${r.lineEquipment||'—'}`, `No.: ${r.equipNo||'—'}`, `Conveyor/Item: ${r.conveyorItem||'—'}`, `Category: ${cL.length?cL.join(', '):'—'}`, `Urgency: ${URGENCY[r.urgency]||'—'}`, `ECD: ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'}`, `Status: ${stWord==='done'?'Completed':stWord==='progress'?'In progress':'Open'}`, ` `, `Actual: ${new Date(t0).toLocaleDateString(undefined, formatOpt).replace(',', '')} to ${new Date(t1).toLocaleDateString(undefined, formatOpt).replace(',', '')} (${Math.max(0.1, (t1-t0)/86400000).toFixed(1)} Days)`, `Target (SLA): ${targetStr}`]; } } }
+                  tooltip: { enabled: false } 
               },
               scales: { 
                   x: { 
@@ -795,7 +883,7 @@
     </div></div>
     
     <div class="kpi-grid" id="dash-kpi-grid"></div>
-    <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
+    <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.<br/><br/><b>Legend: </b><span style="display:inline-block; border-bottom: 2px dashed #9ca3af; width:20px; margin-right:4px;"></span> Urgency Phase (Date Issued to ECD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.65); border:1px solid #2563eb; vertical-align:middle; margin-right:4px;"></span> Active Execution</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
     
     <div class="charts-grid">
       <div class="panel">
@@ -827,7 +915,7 @@
                 <button class="btn btn-ghost" id="full-view-close-btn" style="background:var(--line);">Close</button>
             </div>
          </div>
-         <div class="hint" style="margin-top:-10px; margin-bottom:10px; flex-shrink:0;">Drag inside chart area to pan timeline. Scroll mouse wheel to zoom. Double-click to reset view.</div>
+         <div class="hint" style="margin-top:-10px; margin-bottom:10px; flex-shrink:0;">Drag inside chart area to pan timeline. Scroll mouse wheel to zoom. Double-click to reset view.<br/><b>Legend: </b><span style="display:inline-block; border-bottom: 2px dashed #9ca3af; width:20px; margin-right:4px;"></span> Urgency Phase (Date Issued to ECD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.65); border:1px solid #2563eb; vertical-align:middle; margin-right:4px;"></span> Active Execution</div>
          <div id="fv-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom:12px; font-size:11px; flex-shrink:0;">
            <label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label>
            <label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label>
@@ -882,6 +970,7 @@
         window.fullViewChart.data._masterDone = timelineChart.data._masterDone;
         window.fullViewChart.data._masterProg = timelineChart.data._masterProg;
         window.fullViewChart.data._masterOpen = timelineChart.data._masterOpen;
+        window.fullViewChart.data._masterMilestones = timelineChart.data._masterMilestones;
         
         const isD = document.querySelector('#timeline-custom-legend .leg-chk[value="0"]')?.checked ?? true;
         const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
@@ -915,6 +1004,7 @@
           canvas.dataset.panEnabled = "true";
 
           let startX, startY, initXMin, initXMax, initYMin, initYMax;
+          const tooltip = document.getElementById('acm-custom-tooltip');
 
           canvas.addEventListener('pointerdown', e => {
               const chartInstance = Chart.getChart(canvas);
@@ -928,12 +1018,72 @@
               initYMax = chartInstance.options.scales.y.max !== undefined ? chartInstance.options.scales.y.max : (chartInstance.data.labels.length - 1);
               canvas.style.cursor = 'grabbing';
               canvas.dataset.isDragging = "true";
+              if (tooltip) tooltip.classList.remove('show');
           });
 
           canvas.addEventListener('pointermove', e => {
-              if (!canvas.hasPointerCapture(e.pointerId) || canvas.dataset.isDragging !== "true") return;
               const chartInstance = Chart.getChart(canvas);
               if (!chartInstance) return;
+
+              // Tooltip Hover Engine
+              if (canvas.dataset.isDragging !== "true" && tooltip) {
+                  const rect = canvas.getBoundingClientRect();
+                  const x = e.clientX - rect.left;
+                  const y = e.clientY - rect.top;
+                  const xAxis = chartInstance.scales.x;
+                  const yAxis = chartInstance.scales.y;
+                  let showTooltip = false, html = '';
+
+                  // 1. Over Y-Axis
+                  if (x >= 0 && x <= yAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
+                      const val = yAxis.getValueForPixel(y);
+                      if (val >= 0 && val < chartInstance.data.labels.length) {
+                           const labelStr = chartInstance.data.labels[val];
+                           const rawData = [...chartInstance.data._masterDone, ...chartInstance.data._masterProg, ...chartInstance.data._masterOpen].find(d => d.y === labelStr);
+                           if (rawData && rawData._r) {
+                               html = buildRecordTooltip(rawData._r);
+                               showTooltip = true;
+                           }
+                      }
+                  } 
+                  // 2. Over Chart Area (Milestone Check)
+                  else if (x > yAxis.right && x <= xAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
+                      const val = yAxis.getValueForPixel(y);
+                      const time = xAxis.getValueForPixel(x);
+                      const labelStr = chartInstance.data.labels[val];
+                      
+                      if (labelStr && chartInstance.data._masterMilestones) {
+                           const msPerPx = (xAxis.max - xAxis.min) / xAxis.width;
+                           const threshold = msPerPx * 15; 
+                           const yTargetPx = yAxis.getPixelForValue(val);
+                           
+                           if (Math.abs(y - yTargetPx) < 15) {
+                               const milestones = chartInstance.data._masterMilestones.filter(m => m.y === labelStr);
+                               for (let m of milestones) {
+                                   if (Math.abs(m.t - time) < threshold) {
+                                        html = buildMilestoneTooltip(m);
+                                        showTooltip = true;
+                                        break;
+                                   }
+                               }
+                           }
+                      }
+                  }
+
+                  if (showTooltip) {
+                      tooltip.innerHTML = html;
+                      tooltip.classList.add('show');
+                      tooltip.style.display = 'block';
+                      tooltip.style.left = (e.clientX + 15) + 'px';
+                      tooltip.style.top = (e.clientY + 15) + 'px';
+                  } else {
+                      tooltip.classList.remove('show');
+                      setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
+                  }
+              }
+
+              // Panning Engine
+              if (!canvas.hasPointerCapture(e.pointerId) || canvas.dataset.isDragging !== "true") return;
               
               const diffX = e.clientX - startX;
               const diffY = e.clientY - startY;
@@ -973,6 +1123,13 @@
               canvas.releasePointerCapture(e.pointerId);
               canvas.style.cursor = 'grab';
               canvas.dataset.isDragging = "false";
+          });
+
+          canvas.addEventListener('pointerleave', () => {
+              if (tooltip) {
+                  tooltip.classList.remove('show');
+                  setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
+              }
           });
 
           canvas.addEventListener('wheel', e => {
