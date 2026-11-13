@@ -1358,11 +1358,19 @@
         const isActive = r && String(c.createdAt) === String(r.createdAt);
         let latestStatus = 'N/A';
         if (c.clm) {
-           if (c.clm.renewal && c.clm.renewal.status) latestStatus = c.clm.renewal.status;
-           else if (c.clm.monitoring && c.clm.monitoring.status) latestStatus = c.clm.monitoring.status;
-           else if (c.clm.approval && c.clm.approval.status) latestStatus = c.clm.approval.status;
-           else if (c.clm.negotiations && c.clm.negotiations.length && c.clm.negotiations[c.clm.negotiations.length-1].status) latestStatus = c.clm.negotiations[c.clm.negotiations.length-1].status;
-           else if (c.clm.creation && c.clm.creation.status) latestStatus = c.clm.creation.status;
+           if (c.clm.renewal && c.clm.renewal.status) {
+               latestStatus = c.clm.renewal.status;
+           } else if (c.vendorMonitoring && c.vendorMonitoring.length > 0) {
+               const lastHist = c.vendorMonitoring[c.vendorMonitoring.length - 1];
+               const hasNotMet = lastHist.metrics && lastHist.metrics.some(m => m.status === 'Not Met');
+               latestStatus = hasNotMet ? 'Breach' : 'Active';
+           } else if (c.clm.approval && c.clm.approval.status) {
+               latestStatus = c.clm.approval.status;
+           } else if (c.clm.negotiations && c.clm.negotiations.length && c.clm.negotiations[c.clm.negotiations.length-1].status) {
+               latestStatus = c.clm.negotiations[c.clm.negotiations.length-1].status;
+           } else if (c.clm.creation && c.clm.creation.status) {
+               latestStatus = c.clm.creation.status;
+           }
         }
         const vendorDisp = c.vendorNameBase === 'Other' ? (c.vendorNameOther || 'Other') : (c.vendorNameBase || '—');
         const monitoringCount = c.vendorMonitoring ? c.vendorMonitoring.length : 0;
@@ -1416,7 +1424,36 @@
             clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', ['Pending', 'Agreed'], 'Iteration Notes...');
         });
         clmHtml += clmRow('3. Approval & Signature (Execution)', 'approval', null, clm.approval, 'Signatory', ['Signed', 'Hold'], 'Execution Details...');
-        clmHtml += clmRow('4. Monitoring & Management', 'monitoring', null, clm.monitoring, 'Contract Manager', ['Active', 'Breach'], 'KPIs/SLA...');
+        
+        // --- Auto-populating Stage 4 from Vendor Monitoring History ---
+        if (r.vendorMonitoring && r.vendorMonitoring.length > 0) {
+            r.vendorMonitoring.forEach((hist, idx) => {
+                const label = idx === 0 ? '4. Monitoring & Management' : '';
+                const hasNotMet = hist.metrics && hist.metrics.some(m => m.status === 'Not Met');
+                const calcStatus = hasNotMet ? 'Breach' : 'Active';
+                const pics = [...new Set((hist.metrics || []).map(m => m.pic).filter(x => x && x.trim() !== ''))].join(', ').replace(/"/g, '&quot;');
+                const remarks = [...new Set((hist.metrics || []).map(m => m.remarks).filter(x => x && x.trim() !== ''))].join(' | ').replace(/"/g, '&quot;');
+                
+                clmHtml += `
+                <tr>
+                    <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">${label}</td>
+                    <td><input type="date" value="${hist.date || ''}" readonly style="background:var(--line);cursor:not-allowed" /></td>
+                    <td><input type="text" value="${pics}" readonly style="background:var(--line);cursor:not-allowed" title="${pics}" placeholder="No PIC"/></td>
+                    <td><input type="text" value="${calcStatus}" readonly style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--line);color:${calcStatus==='Breach'?'var(--crit)':'var(--ok)'};font-weight:bold;cursor:not-allowed"/></td>
+                    <td><input type="text" value="${remarks}" readonly style="background:var(--line);cursor:not-allowed" title="${remarks}" placeholder="No Remarks"/></td>
+                </tr>`;
+            });
+        } else {
+            clmHtml += `
+            <tr>
+                <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">4. Monitoring & Management</td>
+                <td><input type="date" readonly style="background:var(--line);cursor:not-allowed"/></td>
+                <td><input type="text" placeholder="Auto-pulled from Vendor Mgt" readonly style="background:var(--line);cursor:not-allowed"/></td>
+                <td><input type="text" placeholder="Auto-status" readonly style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--line);cursor:not-allowed"/></td>
+                <td><input type="text" placeholder="Auto-pulled from Vendor Mgt" readonly style="background:var(--line);cursor:not-allowed"/></td>
+            </tr>`;
+        }
+
         clmHtml += clmRow('5. Renewal or Termination', 'renewal', null, clm.renewal, 'Action Owner', ['Renewed', 'Terminated', 'Expired'], 'Notice Terms...');
 
         const tableDisplay = state.contractClmTableVisible ? 'table' : 'none';
