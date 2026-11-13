@@ -296,17 +296,35 @@
   function getFilteredDashboardRecords() {
     const sDate = document.getElementById('dash-start')?.value, eDate = document.getElementById('dash-end')?.value;
     const getSel = n => Array.from(document.querySelectorAll(`input[name="${n}"]:checked`)).map(cb => cb.value);
-    const selUrg = getSel('dash-urgency'), selCat = getSel('dash-cat'), selStat = getSel('dash-status');
-    const lineQ = (document.getElementById('dash-line')?.value || '').toLowerCase(), convQ = (document.getElementById('dash-conveyor')?.value || '').toLowerCase();
+    
+    const selClass = getSel('dash-class');
+    const selCrit = getSel('dash-crit');
+    const selCat = getSel('dash-cat');
+    const selVendor = getSel('dash-vendor');
+    const selDur = getSel('dash-duration');
+    
     const startTs = sDate ? getTs(sDate) : 0, endTs = eDate ? (getTs(eDate) + 86400000) : Infinity;
     return state.records.filter(r => !r.isDraft).filter(r => {
       const t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy);
       if ((sDate || eDate) && (!t || t < startTs || t >= endTs)) return false;
-      if (selUrg.length && !selUrg.includes(r.urgency)) return false;
-      if (selStat.length && !selStat.includes(getStatus(r))) return false;
+      
+      if (selClass.length && !selClass.includes(r.maintenanceType)) return false;
+      
+      if (selCrit.length) {
+          let igBase = r.issuedGroup || '';
+          if(igBase.toUpperCase().startsWith('OTHER:')) igBase = 'Other';
+          if (!selCrit.includes(igBase)) return false;
+      }
+      
       if (selCat.length && !selCat.some(c => (r.cat1 && r.cat1[c]))) return false;
-      if (lineQ && !((r.lineEquipment||'') + '-' + (r.equipNo||'')).toLowerCase().includes(lineQ)) return false;
-      if (convQ && !(r.conveyorItem || '').toLowerCase().includes(convQ)) return false;
+      
+      if (selVendor.length) {
+          let vBase = r.vendorNameBase || '';
+          if (!selVendor.includes(vBase)) return false;
+      }
+      
+      if (selDur.length && !selDur.includes(r.contractDuration)) return false;
+      
       return true;
     });
   }
@@ -669,11 +687,55 @@
     const toIsoStr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     let absoluteMinTs = Date.now(); state.records.filter(r => !r.isDraft).forEach(r => { let t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy); if(t && t < absoluteMinTs) absoluteMinTs = t; });
     const defStart = toIsoStr(new Date(absoluteMinTs)), defEnd = toIsoStr(new Date());
-    let allLinesNos = [], allConveyors = new Set();
-    for (let l in EQUIP_DB) for (let n in EQUIP_DB[l]) { allLinesNos.push(l + '-' + n); allConveyors.add(EQUIP_DB[l][n]); }
-    allConveyors.add('OTHERS'); allConveyors = Array.from(allConveyors).sort(); allLinesNos.sort();
-
-    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div><div class="grid g4" id="dash-filters"><label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label><label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label><label class="f">Urgency<div class="dd-wrapper" id="dd-urgency-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(URGENCY).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-urgency" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Status<div class="dd-wrapper" id="dd-status-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><label class="chk"><input type="checkbox" name="dash-status" value="open"/> <span>Open</span></label><label class="chk"><input type="checkbox" name="dash-status" value="progress"/> <span>In progress</span></label><label class="chk"><input type="checkbox" name="dash-status" value="done"/> <span>Completed</span></label></div></div></label><label class="f">Category<div class="dd-wrapper" id="dd-cat-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Line/Equipment - No.<input type="text" id="dash-line" list="dl-lines" placeholder="e.g. BM1-04" autocomplete="off"/><datalist id="dl-lines">${allLinesNos.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label><label class="f">Conveyor/Item<input type="text" id="dash-conveyor" list="dl-conv" placeholder="e.g. TRANSFER CONVEYOR" autocomplete="off"/><datalist id="dl-conv">${allConveyors.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label></div></div><div class="kpi-grid" id="dash-kpi-grid"></div><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">ACM Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
+    
+    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div>
+    <div class="grid g4" id="dash-filters">
+        <label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label>
+        <label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label>
+        <label class="f">Classification
+            <div class="dd-wrapper" id="dd-class-wrapper">
+                <button type="button" class="dd-btn">All</button>
+                <div class="dd-menu">
+                    ${CLASSIFICATION_OPTS.map(v=>`<label class="chk"><input type="checkbox" name="dash-class" value="${v}"/> <span>${v}</span></label>`).join('')}
+                </div>
+            </div>
+        </label>
+        <label class="f">Criteria
+            <div class="dd-wrapper" id="dd-crit-wrapper">
+                <button type="button" class="dd-btn">All</button>
+                <div class="dd-menu">
+                    ${MAIN_CAT_OPTIONS.map(v=>`<label class="chk"><input type="checkbox" name="dash-crit" value="${v}"/> <span>${v}</span></label>`).join('')}
+                </div>
+            </div>
+        </label>
+        <label class="f">Category
+            <div class="dd-wrapper" id="dd-cat-wrapper">
+                <button type="button" class="dd-btn">All</button>
+                <div class="dd-menu">
+                    ${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}
+                </div>
+            </div>
+        </label>
+        <label class="f">Vendor
+            <div class="dd-wrapper" id="dd-vendor-wrapper">
+                <button type="button" class="dd-btn">All</button>
+                <div class="dd-menu">
+                    ${VENDOR_OPTS.map(v=>`<label class="chk"><input type="checkbox" name="dash-vendor" value="${v}"/> <span>${v}</span></label>`).join('')}
+                </div>
+            </div>
+        </label>
+        <label class="f">Contract Duration
+            <div class="dd-wrapper" id="dd-duration-wrapper">
+                <button type="button" class="dd-btn">All</button>
+                <div class="dd-menu">
+                    ${['6 months', '12 months', '18 months', '24 months'].map(v=>`<label class="chk"><input type="checkbox" name="dash-duration" value="${v}"/> <span>${v}</span></label>`).join('')}
+                </div>
+            </div>
+        </label>
+    </div></div>
+    
+    <div class="kpi-grid" id="dash-kpi-grid"></div>
+    <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
     
     <div class="charts-grid">
       <div class="panel">
@@ -699,7 +761,7 @@
     <div id="full-view-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,0.85); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
       <div id="full-view-modal-content" style="background:var(--paper); width:96%; height:96%; border-radius:14px; display:flex; flex-direction:column; padding:20px; box-shadow:0 12px 32px rgba(0,0,0,0.3); overflow:hidden;">
          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-shrink:0;">
-            <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">ACM Timeline - Full View</h3>
+            <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">Record Timeline - Full View</h3>
             <div class="fv-toolbar-actions" style="display:flex; gap:8px;">
                 <button class="btn btn-primary" id="full-view-export-btn" style="background:var(--ok);">Save as JPEG</button>
                 <button class="btn btn-ghost" id="full-view-close-btn" style="background:var(--line);">Close</button>
@@ -723,16 +785,19 @@
         chk.addEventListener('change', (e) => toggleLegend(parseInt(e.target.value), e.target.checked));
     });
 
-    setupDropdownFilters('dd-urgency-wrapper', 'All'); setupDropdownFilters('dd-status-wrapper', 'All'); setupDropdownFilters('dd-cat-wrapper', 'All');
+    setupDropdownFilters('dd-class-wrapper', 'All'); setupDropdownFilters('dd-crit-wrapper', 'All'); setupDropdownFilters('dd-cat-wrapper', 'All'); setupDropdownFilters('dd-vendor-wrapper', 'All'); setupDropdownFilters('dd-duration-wrapper', 'All');
     document.addEventListener('click', () => document.querySelectorAll('.dd-menu').forEach(m => m.classList.remove('open')));
-    ['dash-start', 'dash-end', 'dash-line', 'dash-conveyor'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener(id.includes('line')||id.includes('conveyor')?'input':'change', updateDashboardUI); });
+    
+    ['dash-start', 'dash-end'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('change', updateDashboardUI); });
     
     document.getElementById('dash-reset-btn').addEventListener('click', () => {
       document.getElementById('dash-start').value = defStart; document.getElementById('dash-end').value = defEnd;
-      document.querySelectorAll('input[name="dash-urgency"], input[name="dash-cat"], input[name="dash-status"]').forEach(cb => cb.checked = false);
-      const s1 = document.querySelector('#dd-urgency-wrapper .dd-btn'), s2 = document.querySelector('#dd-status-wrapper .dd-btn'), s3 = document.querySelector('#dd-cat-wrapper .dd-btn');
-      if(s1) s1.innerHTML = 'All'; if(s2) s2.innerHTML = 'All'; if(s3) s3.innerHTML = 'All';
-      document.getElementById('dash-line').value = ''; document.getElementById('dash-conveyor').value = ''; updateDashboardUI();
+      document.querySelectorAll('input[name="dash-class"], input[name="dash-crit"], input[name="dash-cat"], input[name="dash-vendor"], input[name="dash-duration"]').forEach(cb => cb.checked = false);
+      ['dd-class-wrapper', 'dd-crit-wrapper', 'dd-cat-wrapper', 'dd-vendor-wrapper', 'dd-duration-wrapper'].forEach(id => {
+          const btn = document.querySelector(`#${id} .dd-btn`);
+          if(btn) btn.innerHTML = 'All';
+      });
+      updateDashboardUI();
     });
 
     document.getElementById('dash-export-btn').addEventListener('click', () => {
@@ -776,10 +841,10 @@
 
     document.getElementById('full-view-close-btn').addEventListener('click', () => { document.getElementById('full-view-overlay').style.display = 'none'; });
 
-    bindJPEGExport('save-chart-btn', 'ACM_Timeline.jpg');
+    bindJPEGExport('save-chart-btn', 'Record_Timeline.jpg');
     bindJPEGExport('save-cat-btn', 'Fault_Category.jpg');
     bindJPEGExport('save-urg-btn', 'Urgency_Distribution.jpg');
-    bindJPEGExport('full-view-export-btn', 'ACM_Timeline_FullView.jpg', 'full-view-modal-content');
+    bindJPEGExport('full-view-export-btn', 'Record_Timeline_FullView.jpg', 'full-view-modal-content');
 
     ensureChartJs(() => {
       if(typeof Chart === 'undefined') { const errDiv = document.getElementById('timeline-scroll-container'); if(errDiv) errDiv.innerHTML = `<div style="text-align:center;padding-top:40px;color:#dc2626;font-weight:bold;font-size:14px;">Chart.js could not be loaded. Please check your network or firewall.</div>`; return; }
@@ -1404,7 +1469,7 @@
         if (!Array.isArray(clm.approval)) clm.approval = [clm.approval || {}];
         
         const clmRow = (label, key, idx, obj, phOwner, statusOpts, phRemarks) => {
-            const pathBase = `clm.${key}${idx !== null ? `.${idx}` : ''}`;
+            const pathBase = `clm.${key}${idx !== null ? \`.\${idx}\` : ''}`;
             const selOpts = `<option value=""></option>` + statusOpts.map(opt => `<option value="${opt}" ${obj.status===opt?'selected':''}>${opt}</option>`).join('');
             
             let actionBtns = '';
@@ -1528,7 +1593,7 @@
                 e.preventDefault();
                 const key = btn.getAttribute('data-key');
                 if(!r.clm) r.clm = { creation:[{}], negotiations:[{}], approval:[{}], monitoring:{}, renewal:{} };
-                if(!Array.isArray(r.clm[key])) r.clm[key] = [r.clm[key]]; // backward compat
+                if(!Array.isArray(r.clm[key])) r.clm[key] = [r.clm[key]]; 
                 r.clm[key].push({date:'',owner:'',status:'',remarks:''});
                 state.isDirty = true;
                 render();
