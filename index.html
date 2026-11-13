@@ -1480,17 +1480,33 @@
 
             let statusStyle = 'width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)';
             
-            if (r.urgency === '3months' && r.happeningDate && obj.status) {
+            if (r.urgency && r.happeningDate && obj.status) {
                 let maxDays = null;
-                if (key === 'creation') {
-                    if (obj.status === 'Initial Draft') maxDays = 14;
-                    else if (obj.status === 'In Progress') maxDays = 28;
-                    else if (obj.status === 'Draft Finalized') maxDays = 35;
-                } else if (key === 'negotiations') {
-                    if (obj.status === 'Pending') maxDays = 56;
-                    else if (obj.status === 'Agreed') maxDays = 70;
-                } else if (key === 'approval') {
-                    if (obj.status === 'Hold' || obj.status === 'Signed') maxDays = 84;
+                const urgMap = {
+                    '1month': {
+                        'creation': { 'Initial Draft': 5, 'In Progress': 10, 'Draft Finalized': 12 },
+                        'negotiations': { 'Pending': 18, 'Agreed': 23 },
+                        'approval': { 'Hold': 28, 'Signed': 28 }
+                    },
+                    '3months': {
+                        'creation': { 'Initial Draft': 14, 'In Progress': 28, 'Draft Finalized': 35 },
+                        'negotiations': { 'Pending': 56, 'Agreed': 70 },
+                        'approval': { 'Hold': 84, 'Signed': 84 }
+                    },
+                    '6months': {
+                        'creation': { 'Initial Draft': 30, 'In Progress': 60, 'Draft Finalized': 75 },
+                        'negotiations': { 'Pending': 120, 'Agreed': 150 },
+                        'approval': { 'Hold': 180, 'Signed': 180 }
+                    },
+                    '12months': {
+                        'creation': { 'Initial Draft': 60, 'In Progress': 120, 'Draft Finalized': 152 },
+                        'negotiations': { 'Pending': 242, 'Agreed': 304 },
+                        'approval': { 'Hold': 365, 'Signed': 365 }
+                    }
+                };
+
+                if (urgMap[r.urgency] && urgMap[r.urgency][key] && urgMap[r.urgency][key][obj.status]) {
+                    maxDays = urgMap[r.urgency][key][obj.status];
                 }
 
                 if (maxDays !== null) {
