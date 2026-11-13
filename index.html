@@ -1478,6 +1478,37 @@
                 if (idx > 0) actionBtns += `<br><button class="link-btn" data-act="rem-clm" data-key="${key}" data-idx="${idx}" style="font-size:10px;padding:4px 0 0;color:var(--crit);text-decoration:underline">✖ Remove</button>`;
             }
 
+            let statusStyle = 'width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)';
+            
+            if (r.urgency === '3months' && r.happeningDate && obj.status) {
+                let maxDays = null;
+                if (key === 'creation') {
+                    if (obj.status === 'Initial Draft') maxDays = 14;
+                    else if (obj.status === 'In Progress') maxDays = 28;
+                    else if (obj.status === 'Draft Finalized') maxDays = 35;
+                } else if (key === 'negotiations') {
+                    if (obj.status === 'Pending') maxDays = 56;
+                    else if (obj.status === 'Agreed') maxDays = 70;
+                } else if (key === 'approval') {
+                    if (obj.status === 'Hold' || obj.status === 'Signed') maxDays = 84;
+                }
+
+                if (maxDays !== null) {
+                    const baseTs = new Date(r.happeningDate).getTime();
+                    if (!isNaN(baseTs)) {
+                        const deadlineTs = baseTs + (maxDays * 86400000);
+                        const evalTs = obj.date ? new Date(obj.date).getTime() : Date.now();
+                        const diffDays = (deadlineTs - evalTs) / 86400000;
+                        
+                        if (diffDays < 0) {
+                            statusStyle = 'width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--crit);border-radius:7px;background:#fef2f2;color:var(--crit);font-weight:bold;';
+                        } else if (diffDays <= 3) {
+                            statusStyle = 'width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--warn);border-radius:7px;background:#fffbeb;color:var(--warn);font-weight:bold;';
+                        }
+                    }
+                }
+            }
+
             return `
             <tr>
                 <td style="font-size:.7rem;font-weight:700;color:var(--ink);vertical-align:top;padding-top:12px">
@@ -1487,7 +1518,7 @@
                 <td><input type="date" data-path="${pathBase}.date" value="${obj.date||''}"/></td>
                 <td><input type="text" data-path="${pathBase}.owner" value="${obj.owner||''}" placeholder="${phOwner}"/></td>
                 <td>
-                  <select data-path="${pathBase}.status" style="width:100%;font-size:.75rem;padding:7px 4px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)">
+                  <select data-path="${pathBase}.status" style="${statusStyle}">
                     ${selOpts}
                   </select>
                 </td>
@@ -1497,7 +1528,7 @@
 
         let clmHtml = '';
         clm.creation.forEach((cre, i) => {
-            clmHtml += clmRow(i===0 ? '1. Creation (Drafting/Authoring)' : '', 'creation', i, cre, 'Author/Drafter', ['Initial Draft', 'In Progress', 'Internal Review', 'Revisions Required', 'Draft Finalized'], 'Doc Ref...');
+            clmHtml += clmRow(i===0 ? '1. Creation (Drafting/Authoring)' : '', 'creation', i, cre, 'Author/Drafter', ['Initial Draft', 'In Progress', 'Draft Finalized'], 'Doc Ref...');
         });
         clm.negotiations.forEach((neg, i) => {
             clmHtml += clmRow(i===0 ? '2. Negotiation & Collaboration' : '', 'negotiations', i, neg, 'Reviewer/Legal', ['Pending', 'Agreed'], 'Iteration Notes...');
