@@ -55,6 +55,7 @@
   #acm-root .chip-open{background:#e5e7eb;color:var(--text-sec)}
   #acm-root .chip-progress{background:#fef3c7;color:var(--warn)}
   #acm-root .chip-done{background:#d1fae5;color:var(--ok)}
+  #acm-root .chip-crit{background:#fee2e2;color:var(--crit)}
   #acm-root .link-btn{border:none;background:none;color:var(--accent);font-weight:700;font-size:.75rem;cursor:pointer;padding:2px 4px}
   #acm-root .empty-state{text-align:center;padding:34px 10px;color:var(--text-sec);font-size:.875rem}
   #acm-root .form-shell{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:20px 22px 24px}
@@ -132,6 +133,7 @@
   const URGENCY_MS = { '1month': 30*86400000, '3months': 90*86400000, '6months': 180*86400000, '12months': 365*86400000 };
   const GROUP_OPTIONS = ['Shift A', 'Shift B', 'Shift C', 'Shift D', 'OH', 'Vendor'];
   const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Maintenance', 'Other'];
+  const VENDOR_OPTS = ['OMNI', 'CPT', 'SD Prima', 'CPT Kauffman', 'ABS', 'CTwo Engineering', 'Syswin', 'Other'];
   
   const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
@@ -196,7 +198,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [] };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: 'Contract Management', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [], vendorNameBase: '', vendorNameOther: '', vendorContactPerson: '', vendorAddress: '', vendorContactNumber: '' };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false, vendorSlaTableVisible: false };
@@ -1146,7 +1148,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${field('Classification','maintenanceType',r.maintenanceType,'text','readonly style="background:var(--line);cursor:not-allowed"')}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,CLASSIFICATION_OPTS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
@@ -1160,6 +1162,27 @@
             ${areaSection}
             ${dynamicSection}
         </div>
+        
+        <div class="sec" id="sec-vendor">
+            <div class="sec-title">Vendor</div>
+            <div class="grid g2">
+                <label class="f">Name
+                    <div style="display:flex;gap:6px">
+                        <select data-calc-group="vendorNameGrp" data-part="base" style="flex:1;min-width:0">
+                            <option value=""></option>
+                            ${VENDOR_OPTS.map(o=>`<option value="${o}" ${(r.vendorNameBase||'')===o?'selected':''}>${o}</option>`).join('')}
+                        </select>
+                        ${(r.vendorNameBase||'')==='Other'?`<input type="text" data-calc-group="vendorNameGrp" data-part="vendor" placeholder="Specify..." value="${r.vendorNameOther||''}" style="flex:1;min-width:0"/>`:''}
+                    </div>
+                </label>
+                ${field('Contact Person', 'vendorContactPerson', r.vendorContactPerson)}
+            </div>
+            <div class="grid g2" style="margin-top:10px">
+                ${field('Address', 'vendorAddress', r.vendorAddress, 'textarea')}
+                ${field('Contact Number', 'vendorContactNumber', r.vendorContactNumber)}
+            </div>
+        </div>
+        
         <div class="sec" id="sec-category">
             <div class="sec-title">Category</div>
             <div class="check-row">${Object.entries(CATS).map(([k,l])=>checkbox(l,(r.cat1||{})[k],'cat1.'+k)).join('')}</div>
@@ -1209,6 +1232,7 @@
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
+      if(!checkReq(r.maintenanceType)) errs.push("[Classification] Classification");
       
       let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
       let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
@@ -1242,21 +1266,27 @@
         state.isDirty = true; 
         const wrp = el.closest('div'), bVal = wrp.querySelector('[data-part="base"]')?.value||'', vVal = wrp.querySelector('[data-part="vendor"]')?.value||'';
         const cg = el.getAttribute('data-calc-group');
-        const isMainCat = cg === 'issuedGroup';
-        const triggerVal = isMainCat ? 'Other' : 'Vendor';
-        const newVal = (bVal === triggerVal) ? (vVal ? `${bVal}: ${vVal}` : bVal) : bVal;
         
-        if (isMainCat) {
-            let oldBase = r.issuedGroup || '';
-            let parsedOld = oldBase.toUpperCase().startsWith('OTHER:') ? 'Other' : oldBase;
-            if (bVal !== parsedOld) {
-                r.lineEquipment = '';
-                r.equipNo = '';
-                r.conveyorItem = '';
+        if (cg === 'vendorNameGrp') {
+            r.vendorNameBase = bVal;
+            r.vendorNameOther = vVal;
+        } else {
+            const isMainCat = cg === 'issuedGroup';
+            const triggerVal = isMainCat ? 'Other' : 'Vendor';
+            const newVal = (bVal === triggerVal) ? (vVal ? `${bVal}: ${vVal}` : bVal) : bVal;
+            
+            if (isMainCat) {
+                let oldBase = r.issuedGroup || '';
+                let parsedOld = oldBase.toUpperCase().startsWith('OTHER:') ? 'Other' : oldBase;
+                if (bVal !== parsedOld) {
+                    r.lineEquipment = '';
+                    r.equipNo = '';
+                    r.conveyorItem = '';
+                }
             }
+            setByPath(r, cg, newVal); 
         }
 
-        setByPath(r, cg, newVal); 
         saveRecords();
         if(el.getAttribute('data-part')==='base') render(); else updateHighlights(container, r);
       });
@@ -1300,8 +1330,8 @@
             saveRecords(); render(); return;
         }
 
-        if (path === 'area') { r.subArea = ''; r.areaNo = ''; saveRecords(); render(); return; }
-        if (path === 'subArea') { r.areaNo = ''; saveRecords(); render(); return; }
+        if (path === 'area') { r.subArea = 'All'; r.areaNo = 'All'; saveRecords(); render(); return; }
+        if (path === 'subArea') { r.areaNo = 'All'; saveRecords(); render(); return; }
         
         if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
         
@@ -1476,28 +1506,53 @@
 
     const rows = vendors.map(c => {
         const isActive = r && String(c.createdAt) === String(r.createdAt);
-        let latestStatus = 'N/A';
-        if (c.vendorSla && Array.isArray(c.vendorSla)) {
-            const hasMissed = c.vendorSla.some(v => v.status === 'Not Met');
-            const hasMet = c.vendorSla.some(v => v.status === 'Met');
-            if (hasMissed) latestStatus = 'Not Met';
-            else if (hasMet) latestStatus = 'Met';
-            else latestStatus = 'Pending';
+        let latestStatus = 'Pending';
+        let monitoringCount = c.vendorMonitoring ? c.vendorMonitoring.length : 0;
+        
+        let refDateStr = monitoringCount > 0 ? c.vendorMonitoring[c.vendorMonitoring.length - 1].date : c.startDate;
+        let needsAttention = false;
+        
+        if (refDateStr) {
+            let refDate = new Date(refDateStr);
+            if (!isNaN(refDate.getTime())) {
+                let limitDate = new Date(refDate);
+                limitDate.setMonth(limitDate.getMonth() + 3);
+                if (Date.now() > limitDate.getTime()) {
+                    needsAttention = true;
+                }
+            }
         }
+        
+        if (needsAttention) {
+            latestStatus = 'Need Attention';
+        } else if (monitoringCount === 0) {
+            latestStatus = 'Pending';
+        } else {
+            let hasNotMet = c.vendorMonitoring.some(hist => hist.metrics && hist.metrics.some(m => m.status === 'Not Met'));
+            if (hasNotMet) latestStatus = 'Not Met';
+            else latestStatus = 'Met';
+        }
+        
+        let chipClass = 'chip-open';
+        if(latestStatus === 'Need Attention') chipClass = 'chip-progress';
+        else if(latestStatus === 'Met') chipClass = 'chip-done';
+        else if(latestStatus === 'Not Met') chipClass = 'chip-crit';
+
         return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-vendor" data-id="${c.createdAt}">
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo||'—'}</span></td>
             <td>${c.startDate ? fmtDate({happeningDate: c.startDate}) : '—'}</td>
             <td>${c.title||'—'}</td>
             <td>${c.issuedGroup||'—'}</td>
             <td>${c.endDate ? fmtDate({happeningDate: c.endDate}) : '—'}</td>
-            <td><span class="status-chip ${latestStatus==='Met'?'chip-done':latestStatus==='Not Met'?'chip-progress':'chip-open'}">${latestStatus}</span></td>
+            <td style="text-align:center;font-weight:700;color:var(--ink-light)">${monitoringCount}</td>
+            <td><span class="status-chip ${chipClass}">${latestStatus}</span></td>
         </tr>`;
     }).join('');
 
     const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
         <div class="table-panel" style="padding:0;border:none">
             ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
-            `<table class="list"><thead><tr><th>Record No.</th><th>Start Date</th><th>Title</th><th>Criteria</th><th>End Date</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
+            `<table class="list"><thead><tr><th>Record No.</th><th>Start Date</th><th>Title</th><th>Criteria</th><th>End Date</th><th>Monitoring</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
         </div>
     </div>`;
 
@@ -1547,7 +1602,7 @@
               </thead>
               <tbody>${slaHtml}</tbody>
             </table>
-            <div style="display:flex;justify-content:flex-end;">
+            <div style="display:${state.vendorSlaTableVisible ? 'flex' : 'none'};justify-content:flex-end;">
                <button class="btn btn-primary" id="vendor-add-monitor-btn" style="padding:4px 10px;font-size:.75rem">✚ Add Monitoring</button>
             </div>
         </div>`;
