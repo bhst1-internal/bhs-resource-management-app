@@ -135,8 +135,7 @@
   
   const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
-  
-  const CLASSIFICATION_OPTS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
+  const INPUT_TABS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
 
   const SLA_METRICS = [
       {type: 'SLA (Speed)', name: 'Emergency Response Time', target: 'On-site within 2 hours for critical failures (e.g., power outage, burst pipe).', measure: 'Time from work order dispatch to technician check-in on site.'},
@@ -147,7 +146,7 @@
       {type: 'KPI (Safety)', name: 'HSE & Permit Compliance', target: '100% adherence to safety rules and Permit-to-Work (PTW) protocols.', measure: 'Number of safety audits passed without violations or near-misses.'}
   ];
 
-  function showModal(title, msg, type = 'alert', errorMode = false) {
+  function showModal(title, msg, type = 'alert', extraArg = false) {
     return new Promise(resolve => {
       let overlay = document.getElementById('acm-modal-overlay');
       if(!overlay){
@@ -175,8 +174,9 @@
       function close() { overlay.classList.remove('active'); }
       const createBtn = (cls, text, cb) => { const b = document.createElement('button'); b.className = cls; b.textContent = text; b.onclick = () => { close(); cb(); }; return b; };
       
-      if(type === 'alert') actionsEl.appendChild(createBtn(errorMode ? 'btn btn-danger' : 'btn btn-primary', 'OK', () => resolve(true)));
+      if(type === 'alert') actionsEl.appendChild(createBtn(extraArg ? 'btn btn-danger' : 'btn btn-primary', 'OK', () => resolve(true)));
       else if(type === 'confirm'){ actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false))); actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Delete', () => resolve(true))); }
+      else if(type === 'confirm-edit'){ actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false))); actionsEl.appendChild(createBtn('btn btn-primary', 'Edit', () => resolve(true))); }
       else if(type === 'prompt' || type === 'prompt-date'){
         actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
         const handleSub = () => { close(); resolve(inputEl.value); };
@@ -184,7 +184,14 @@
         inputEl.onkeydown = e => { if(e.key === 'Enter') handleSub(); };
       }
       else if(type === 'unsaved'){ actionsEl.appendChild(createBtn('btn btn-primary', 'Cancel & Keep Editing', () => resolve(false))); actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Discard Data', () => resolve(true))); }
-      void overlay.offsetWidth; overlay.classList.add('active'); if(type === 'prompt' || type === 'prompt-date') setTimeout(() => inputEl.focus(), 50);
+      
+      void overlay.offsetWidth; overlay.classList.add('active'); 
+      if(type === 'prompt' || type === 'prompt-date') {
+          setTimeout(() => { 
+              if(type === 'prompt-date' && typeof extraArg === 'string') inputEl.value = extraArg;
+              inputEl.focus(); 
+          }, 50);
+      }
     });
   }
 
@@ -192,7 +199,7 @@
     return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [] };
   }
 
-  let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false };
+  let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false, vendorSlaTableVisible: false };
   const checkReq = v => v != null && String(v).trim() !== '';
 
   async function loadRecords() {
@@ -1043,7 +1050,14 @@
 
   function renderInput(container) {
     let r = getActive();
-    if (!r) { r = blankRecord(); r.reportNo = getNextReportNo(); state.records.unshift(r); state.activeId = r.createdAt; state.isDirty = false; }
+    if (!r) { 
+        r = blankRecord(); 
+        r.reportNo = getNextReportNo(); 
+        r.maintenanceType = 'Contract Management'; 
+        state.records.unshift(r); 
+        state.activeId = r.createdAt; 
+        state.isDirty = false; 
+    }
     if (!state.isDirty) state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
 
     const options = state.records.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
@@ -1132,13 +1146,11 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,CLASSIFICATION_OPTS)}
+                ${field('Classification','maintenanceType',r.maintenanceType,'text','readonly style="background:var(--line);cursor:not-allowed"')}
             </div>
-            <div class="grid g2" style="margin-top:10px">
+            <div class="grid g3" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
                 ${selectField('Issued By','issuedBy',r.issuedBy,ISSUED_NAMES)}
-            </div>
-            <div class="grid g1" style="margin-top:10px">
                 ${groupField('Criteria','issuedGroup',igBase,igOther,true)}
             </div>
         </div>
@@ -1197,7 +1209,6 @@
       if(!checkReq(r.issuedBy)) errs.push("[Classification] Issued By");
       if(!igBase || (igBase.toUpperCase() === 'OTHER' && (r.issuedGroup||'').trim().toUpperCase()==='OTHER')) errs.push("[Classification] Criteria (Include Specify if Other)");
       if(!checkReq(r.reportNo)) errs.push("[Classification] Record No. (BHS/Record)");
-      if(!checkReq(r.maintenanceType)) errs.push("[Classification] Classification");
       
       let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
       let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
@@ -1507,17 +1518,23 @@
             </tr>`;
         }).join('');
 
+        const tableDisplay = state.vendorSlaTableVisible ? 'table' : 'none';
+        const toggleBtnText = state.vendorSlaTableVisible ? 'Hide Table' : 'Table';
+
         slaSec = `<div class="sec">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
                 <div class="sec-title" style="margin:0">Service Level Agreement (SLA) & Key Performance Indicator (KPI) - ${r.reportNo}</div>
-                <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
+                <div style="display:flex; gap: 8px;">
+                    <button class="btn btn-ghost" id="vendor-toggle-table-btn" style="padding:4px 10px;font-size:.75rem">${toggleBtnText}</button>
+                    <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
+                </div>
             </div>
             <div class="grid g4" style="margin-bottom:14px">
                 ${field('Contract Duration', 'contractDuration', r.contractDuration, 'text', 'readonly style="background:var(--line);cursor:not-allowed"')}
                 ${field('Start Date', 'startDate', r.startDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
                 ${field('End Date', 'endDate', r.endDate, 'date', 'readonly style="background:var(--line);cursor:not-allowed"')}
             </div>
-            <table class="editrows" style="margin-bottom:12px">
+            <table class="editrows" style="margin-bottom:12px; display:${tableDisplay}">
               <thead>
                 <tr>
                   <th style="width:12%">Metric Type</th>
@@ -1536,10 +1553,16 @@
         </div>`;
 
         if (r.vendorMonitoring && r.vendorMonitoring.length > 0) {
-            const histHtml = r.vendorMonitoring.slice().reverse().map(hist => `
+            const histHtml = r.vendorMonitoring.slice().reverse().map((hist, i) => {
+               const origIdx = r.vendorMonitoring.length - 1 - i;
+               return `
                <div style="margin-bottom: 16px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;">
-                 <div style="background: var(--line); padding: 8px 12px; font-weight: 700; font-size: .85rem; border-bottom: 1px solid var(--line);">
-                   Date: ${hist.date ? fmtDate({happeningDate: hist.date}) : '—'}
+                 <div style="background: var(--line); padding: 8px 12px; font-weight: 700; font-size: .85rem; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+                   <span>Date: ${hist.date ? fmtDate({happeningDate: hist.date}) : '—'}</span>
+                   <div style="display:flex; gap: 6px;">
+                       <button class="btn btn-ghost" data-act="edit-monitor" data-idx="${origIdx}" style="padding: 2px 8px; font-size: .65rem; background: var(--paper);">Edit</button>
+                       <button class="btn btn-danger" data-act="del-monitor" data-idx="${origIdx}" style="padding: 2px 8px; font-size: .65rem;">Delete</button>
+                   </div>
                  </div>
                  <table class="list" style="margin: 0; width: 100%;">
                    <thead>
@@ -1551,9 +1574,9 @@
                      </tr>
                    </thead>
                    <tbody>
-                     ${hist.metrics.map((m, i) => `
+                     ${hist.metrics.map((m, idx) => `
                        <tr>
-                         <td><b>${SLA_METRICS[i].name}</b></td>
+                         <td><b>${SLA_METRICS[idx].name}</b></td>
                          <td>${m.actual || '—'}</td>
                          <td><span class="status-chip ${m.status==='Met'?'chip-done':m.status==='Not Met'?'chip-progress':'chip-open'}">${m.status || '—'}</span></td>
                          <td>${m.remarks || '—'}</td>
@@ -1562,7 +1585,8 @@
                    </tbody>
                  </table>
                </div>
-             `).join('');
+             `;
+            }).join('');
              
             monitorHistorySec = `<div class="sec">
                 <div class="sec-title">Monitoring History</div>
@@ -1586,6 +1610,45 @@
     });
 
     if (r) {
+        const toggleBtn = container.querySelector('#vendor-toggle-table-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                state.vendorSlaTableVisible = !state.vendorSlaTableVisible;
+                render();
+            });
+        }
+
+        container.querySelectorAll('[data-act="del-monitor"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const idx = parseInt(btn.getAttribute('data-idx'));
+                const confirm = await showModal("Confirm Deletion", "Are you sure you want to delete this monitoring record?", "confirm");
+                if (confirm) {
+                    r.vendorMonitoring.splice(idx, 1);
+                    state.isDirty = true;
+                    saveRecords();
+                    render();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-act="edit-monitor"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const idx = parseInt(btn.getAttribute('data-idx'));
+                const confirm = await showModal("Edit Monitoring", "Load this record into the input table? (It will be removed from history until you click '+ Add Monitoring' again)", "confirm-edit");
+                if (confirm) {
+                    state.editMonitorDate = r.vendorMonitoring[idx].date;
+                    r.vendorSla = JSON.parse(JSON.stringify(r.vendorMonitoring[idx].metrics));
+                    r.vendorMonitoring.splice(idx, 1);
+                    state.vendorSlaTableVisible = true;
+                    state.isDirty = true;
+                    saveRecords();
+                    render();
+                }
+            });
+        });
+
         container.querySelectorAll('[data-path]').forEach(el => {
             if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
             el.addEventListener('input', () => {
@@ -1614,28 +1677,38 @@
             for(let i=0; i<6; i++) {
                 const actualEl = container.querySelector(`[data-path="vendorSla.${i}.actual"]`);
                 const statusEl = container.querySelector(`[data-path="vendorSla.${i}.status"]`);
-                actualEl.classList.remove('err-highlight');
-                statusEl.classList.remove('err-highlight');
-                if(!r.vendorSla[i].actual || r.vendorSla[i].actual.trim() === '') {
-                    actualEl.classList.add('err-highlight');
-                    valid = false;
-                }
-                if(!r.vendorSla[i].status || r.vendorSla[i].status.trim() === '') {
-                    statusEl.classList.add('err-highlight');
-                    valid = false;
+                if (actualEl && statusEl) {
+                    actualEl.classList.remove('err-highlight');
+                    statusEl.classList.remove('err-highlight');
+                    if(!r.vendorSla[i].actual || r.vendorSla[i].actual.trim() === '') {
+                        actualEl.classList.add('err-highlight');
+                        valid = false;
+                    }
+                    if(!r.vendorSla[i].status || r.vendorSla[i].status.trim() === '') {
+                        statusEl.classList.add('err-highlight');
+                        valid = false;
+                    }
                 }
             }
             if(!valid) {
-                await showModal("Validation Error", "Please fill in Actual Performance and Status for all metrics.", "alert", true);
+                state.vendorSlaTableVisible = true;
+                render();
+                setTimeout(async () => {
+                    await showModal("Validation Error", "Please fill in Actual Performance and Status for all metrics.", "alert", true);
+                }, 50);
                 return;
             }
-            const mDate = await showModal("Monitoring Date", "Select the date for this monitoring record:", "prompt-date");
+            const defaultDate = state.editMonitorDate || '';
+            const mDate = await showModal("Monitoring Date", "Select the date for this monitoring record:", "prompt-date", defaultDate);
             if(!mDate) return;
             
             await showModal("Success", `Monitoring record for ${mDate} added to history.`, "alert");
             if(!r.vendorMonitoring) r.vendorMonitoring = [];
             r.vendorMonitoring.push({ date: mDate, metrics: JSON.parse(JSON.stringify(r.vendorSla)) });
             r.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', remarks:''}));
+            
+            state.editMonitorDate = null;
+            state.vendorSlaTableVisible = false;
             state.isDirty = true;
             saveRecords();
             render();
