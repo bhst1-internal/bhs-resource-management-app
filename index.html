@@ -137,7 +137,7 @@
   
   const BLANK_TABS = ['Manpower Management', 'Cost & Budget Management'];
   const ALL_TABS = ['Dashboard', 'Record Input', 'Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
-  const INPUT_TABS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
+  const CLASSIFICATION_OPTS = ['Manpower Management', 'Cost & Budget Management', 'Vendor Management'];
 
   const SLA_METRICS = [
       {type: 'SLA (Speed)', name: 'Emergency Response Time', target: 'On-site within 2 hours for critical failures (e.g., power outage, burst pipe).', measure: 'Time from work order dispatch to technician check-in on site.'},
@@ -299,7 +299,7 @@
     const lineQ = (document.getElementById('dash-line')?.value || '').toLowerCase(), convQ = (document.getElementById('dash-conveyor')?.value || '').toLowerCase();
     const startTs = sDate ? getTs(sDate) : 0, endTs = eDate ? (getTs(eDate) + 86400000) : Infinity;
     return state.records.filter(r => !r.isDraft).filter(r => {
-      const t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy);
+      const t = getExactTs(r.happeningDate, r.dd, r.mm, r.yy) || r.createdAt;
       if ((sDate || eDate) && (!t || t < startTs || t >= endTs)) return false;
       if (selUrg.length && !selUrg.includes(r.urgency)) return false;
       if (selStat.length && !selStat.includes(getStatus(r))) return false;
@@ -415,11 +415,8 @@
       const tlLabels = [], dsDone = [], dsProg = [], dsOpen = [];
       let globalMinT = nowTs, globalMaxT = nowTs;
       
-      const doneBg = 'rgba(5, 150, 105, 0.45)', doneBc = 'rgba(5, 150, 105, 1)';
-      const progBg = 'rgba(217, 119, 6, 0.45)', progBc = 'rgba(217, 119, 6, 1)';
-
       timelineFiltered.forEach(r => { 
-        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy); 
+        let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy) || parseInt(r.createdAt, 10); 
         if (t0 && !isNaN(t0) && t0 < globalMinT) globalMinT = t0; 
       });
       
@@ -437,8 +434,8 @@
         tlLabels.push(labelStr);
         
         const dsTarget = statusLogic === 'done' ? dsDone : (statusLogic === 'progress' ? dsProg : dsOpen);
-        const activeBg = statusLogic === 'done' ? doneBg : (statusLogic === 'progress' ? progBg : 'transparent');
-        const activeBc = statusLogic === 'done' ? doneBc : (statusLogic === 'progress' ? progBc : 'transparent');
+        const activeBg = statusLogic === 'done' ? 'rgba(5, 150, 105, 0.45)' : (statusLogic === 'progress' ? 'rgba(217, 119, 6, 0.45)' : 'transparent');
+        const activeBc = statusLogic === 'done' ? 'rgba(5, 150, 105, 1)' : (statusLogic === 'progress' ? 'rgba(217, 119, 6, 1)' : 'transparent');
 
         if (statusLogic === 'open') {
             dsTarget.push({ x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: endOfAction });
@@ -479,11 +476,11 @@
     if (classChart) {
       const cCounts = [0, 0, 0];
       filtered.forEach(r => { 
-          const idx = INPUT_TABS.indexOf(r.maintenanceType);
+          const idx = CLASSIFICATION_OPTS.indexOf(r.maintenanceType);
           if(idx >= 0) cCounts[idx]++; 
       });
       
-      classChart.data.labels = INPUT_TABS;
+      classChart.data.labels = CLASSIFICATION_OPTS;
       classChart.data.datasets[0].data = cCounts;
       classChart.update();
     }
@@ -654,7 +651,7 @@
 
   function renderDashboard(container) {
     const toIsoStr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    let absoluteMinTs = Date.now(); state.records.filter(r => !r.isDraft).forEach(r => { let t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy); if(t && t < absoluteMinTs) absoluteMinTs = t; });
+    let absoluteMinTs = Date.now(); state.records.filter(r => !r.isDraft).forEach(r => { let t = getExactTs(r.happeningDate, r.dd, r.mm, r.yy) || r.createdAt; if(t && t < absoluteMinTs) absoluteMinTs = t; });
     const defStart = toIsoStr(new Date(absoluteMinTs)), defEnd = toIsoStr(new Date());
     let allLinesNos = [], allConveyors = new Set();
     for (let l in EQUIP_DB) for (let n in EQUIP_DB[l]) { allLinesNos.push(l + '-' + n); allConveyors.add(EQUIP_DB[l][n]); }
@@ -993,7 +990,7 @@
       const classCtx = document.getElementById('acm-class-chart');
       if (classCtx) {
         if(classChart) classChart.destroy();
-        classChart = new Chart(classCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:INPUT_TABS, datasets:[{data:[0,0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} record${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
+        classChart = new Chart(classCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:CLASSIFICATION_OPTS, datasets:[{data:[0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} record${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
       }
 
       updateDashboardUI();
@@ -1136,7 +1133,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,CLASSIFICATION_OPTS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
@@ -1243,7 +1240,7 @@
       else {
         const statusLogic = getStatus(r); r.status = statusLogic==='done'?'Completed':statusLogic==='progress'?'In progress':'Open'; r.isDraft = false; state.showErrors = false; state.isDirty = false; state.cleanActiveRecord = JSON.parse(JSON.stringify(r)); saveRecords();
         const btn = container.querySelector('#acm-submit-btn'), ogTxt = btn.innerHTML; btn.innerHTML = 'Saving to Sheet ⏳'; btn.style.pointerEvents = 'none';
-        try { await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:newSearchParams({payload: JSON.stringify(r)}) }); setTimeout(async () => { await showModal("Success", "Record saved to Google Sheets!", "alert"); render(); }, 1200); } 
+        try { await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:new URLSearchParams({payload: JSON.stringify(r)}) }); setTimeout(async () => { await showModal("Success", "Record saved to Google Sheets!", "alert"); render(); }, 1200); } 
         catch (e) { console.error(e); await showModal("Error", "An unexpected error occurred. Saved locally.", "alert", true); btn.innerHTML = ogTxt; btn.style.pointerEvents = 'auto'; }
       }
     });
