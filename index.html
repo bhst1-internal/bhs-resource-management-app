@@ -641,6 +641,66 @@
               });
               ctx.restore();
             }
+          }, {
+            id: 'milestoneDates',
+            afterDatasetsDraw(chart) {
+              const ctx = chart.ctx;
+              const xAxis = chart.scales.x;
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width, chart.chartArea.height);
+              ctx.clip();
+
+              chart.data.datasets.forEach((dataset, i) => {
+                const meta = chart.getDatasetMeta(i);
+                if (meta.hidden) return;
+                meta.data.forEach((bar, index) => {
+                  const raw = dataset.data[index];
+                  if (!raw || !raw._r) return;
+                  const r = raw._r;
+                  
+                  const mDates = new Set();
+                  if (r.clm) {
+                      ['creation', 'negotiations', 'approval'].forEach(k => {
+                          if (Array.isArray(r.clm[k])) {
+                              r.clm[k].forEach(item => {
+                                  if (item && item.date) mDates.add(new Date(item.date).getTime());
+                              });
+                          }
+                      });
+                  }
+                  if (r.vendorMonitoring && Array.isArray(r.vendorMonitoring)) {
+                      r.vendorMonitoring.forEach(item => {
+                          if (item && item.date) mDates.add(new Date(item.date).getTime());
+                      });
+                  }
+
+                  ctx.font = 'bold 9px sans-serif';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+
+                  mDates.forEach(t => {
+                     if (isNaN(t)) return;
+                     const startX = xAxis.getPixelForValue(t);
+                     if (startX >= chart.chartArea.left && startX <= chart.chartArea.right) {
+                         ctx.beginPath();
+                         ctx.arc(startX, bar.y, 3, 0, 2 * Math.PI);
+                         ctx.fillStyle = '#ffffff';
+                         ctx.fill();
+                         ctx.lineWidth = 1.5;
+                         ctx.strokeStyle = '#2563eb'; 
+                         ctx.stroke();
+
+                         const dObj = new Date(t);
+                         const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
+                         ctx.fillStyle = '#374151';
+                         ctx.fillText(dateStr, startX, bar.y + (bar.height / 2) + 7);
+                     }
+                  });
+                });
+              });
+              ctx.restore();
+            }
           }],
           data: { 
               labels:[], 
