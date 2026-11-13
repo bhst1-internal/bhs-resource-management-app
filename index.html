@@ -198,7 +198,7 @@
   }
 
   function blankRecord() {
-    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: 'Contract Management', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [], vendorNameBase: '', vendorNameOther: '', vendorContactPerson: '', vendorAddress: '', vendorContactNumber: '' };
+    return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: '', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: {date:'',owner:'',status:'',remarks:''}, negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: {date:'',owner:'',status:'',remarks:''}, monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', remarks:''})), vendorMonitoring: [], vendorNameBase: '', vendorNameOther: '', vendorContactPerson: '', vendorAddress: '', vendorContactNumber: '' };
   }
 
   let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false, vendorSlaTableVisible: false };
@@ -285,7 +285,7 @@
     return 'open';
   }
 
-  let timelineChart = null, categoryChart = null, urgencyChart = null;
+  let timelineChart = null, classChart = null, urgencyChart = null;
   function ensureChartJs(cb) {
     if (window.Chart && window.html2canvas) return cb();
     if (document.getElementById('chartjs-script')) { let attempts=0, check=setInterval(()=>{ if(window.Chart && window.html2canvas){ clearInterval(check);cb(); } else if(++attempts>30){ clearInterval(check);cb(); } }, 100); return; }
@@ -395,11 +395,11 @@
       const st = getStatus(r), urg = URGENCY[r.urgency] || '—';
       let catList = [];
       if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-      return `<tr><td><button class="link-btn mono-font" data-act="open" data-id="${r.createdAt}" style="text-decoration:underline;padding:0;text-align:left;font-weight:700">${r.reportNo||'—'}</button></td><td class="mono-font">${fmtDate(r)}</td><td>${r.title||'<span style="color:var(--line-dark)">Untitled</span>'}</td><td>${r.lineEquipment||'—'}</td><td>${r.equipNo||'—'}</td><td>${r.conveyorItem||'—'}</td><td>${catList.length?catList.join(', '):'—'}</td><td>${urg}</td><td><span class="status-chip ${st==='done'?'chip-done':st==='progress'?'chip-progress':'chip-open'}">${st==='done'?'Completed':st==='progress'?'In progress':'Open'}</span></td></tr>`;
+      return `<tr><td><button class="link-btn mono-font" data-act="open" data-id="${r.createdAt}" style="text-decoration:underline;padding:0;text-align:left;font-weight:700">${r.reportNo||'—'}</button></td><td class="mono-font">${fmtDate(r)}</td><td>${r.title||'<span style="color:var(--line-dark)">Untitled</span>'}</td><td>${r.maintenanceType||'—'}</td><td>${r.lineEquipment||'—'}</td><td>${r.equipNo||'—'}</td><td>${r.conveyorItem||'—'}</td><td>${catList.length?catList.join(', '):'—'}</td><td>${urg}</td><td><span class="status-chip ${st==='done'?'chip-done':st==='progress'?'chip-progress':'chip-open'}">${st==='done'?'Completed':st==='progress'?'In progress':'Open'}</span></td></tr>`;
     }).join('');
     
     const tContainer = document.getElementById('dash-table-container');
-    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    if (tContainer) tContainer.innerHTML = filtered.length===0?`<div class="empty-state">No record found matching filters.</div>`:`<table class="list"><thead><tr><th>Record No.</th><th>Date Issued</th><th>Title</th><th>Classification</th><th>Line/Equipment</th><th>No.</th><th>Conveyor/Item</th><th>Category</th><th>Urgency</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
 
     document.querySelectorAll('[data-act="open"]').forEach(btn => { 
         btn.addEventListener('click', () => { 
@@ -475,29 +475,17 @@
         } 
       }
     }
-    if (categoryChart) {
-      let cat1CountsArr = [];
-      const selCatNames = Array.from(document.querySelectorAll('input[name="dash-cat"]:checked')).map(cb => CATS[cb.value]).filter(Boolean);
-      
-      Object.entries(CATS).forEach(([k, name]) => {
-          let count = 0;
-          filtered.forEach(r => { if(r.cat1 && r.cat1[k]) count++; });
-          if(selCatNames.length === 0 || selCatNames.includes(name)) cat1CountsArr.push({name: name, count: count});
+    
+    if (classChart) {
+      const cCounts = [0, 0, 0];
+      filtered.forEach(r => { 
+          const idx = INPUT_TABS.indexOf(r.maintenanceType);
+          if(idx >= 0) cCounts[idx]++; 
       });
       
-      cat1CountsArr.sort((a,b) => b.count - a.count);
-      
-      categoryChart.data.labels = cat1CountsArr.map(x => x.name);
-      categoryChart.data.datasets[0].data = cat1CountsArr.map(x => x.count);
-      categoryChart.data.datasets[0].backgroundColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 0.45)');
-      categoryChart.data.datasets[0].borderColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 1)');
-      categoryChart.options.plugins.verticalLine = false;
-      categoryChart.update();
-    }
-    if (urgencyChart) {
-      const uCounts = { '1month': 0, '3months': 0, '6months': 0, '12months': 0 };
-      filtered.forEach(r => { if(r.urgency && uCounts[r.urgency] !== undefined) uCounts[r.urgency]++; });
-      urgencyChart.data.datasets[0].data = [uCounts['1month'], uCounts['3months'], uCounts['6months'], uCounts['12months']]; urgencyChart.update();
+      classChart.data.labels = INPUT_TABS;
+      classChart.data.datasets[0].data = cCounts;
+      classChart.update();
     }
   }
 
@@ -672,9 +660,17 @@
     for (let l in EQUIP_DB) for (let n in EQUIP_DB[l]) { allLinesNos.push(l + '-' + n); allConveyors.add(EQUIP_DB[l][n]); }
     allConveyors.add('OTHERS'); allConveyors = Array.from(allConveyors).sort(); allLinesNos.sort();
 
-    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div><div class="grid g4" id="dash-filters"><label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label><label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label><label class="f">Urgency<div class="dd-wrapper" id="dd-urgency-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(URGENCY).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-urgency" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Status<div class="dd-wrapper" id="dd-status-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><label class="chk"><input type="checkbox" name="dash-status" value="open"/> <span>Open</span></label><label class="chk"><input type="checkbox" name="dash-status" value="progress"/> <span>In progress</span></label><label class="chk"><input type="checkbox" name="dash-status" value="done"/> <span>Completed</span></label></div></div></label><label class="f">Category<div class="dd-wrapper" id="dd-cat-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Line/Equipment - No.<input type="text" id="dash-line" list="dl-lines" placeholder="e.g. BM1-04" autocomplete="off"/><datalist id="dl-lines">${allLinesNos.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label><label class="f">Conveyor/Item<input type="text" id="dash-conveyor" list="dl-conv" placeholder="e.g. TRANSFER CONVEYOR" autocomplete="off"/><datalist id="dl-conv">${allConveyors.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label></div></div><div class="kpi-grid" id="dash-kpi-grid"></div><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">ACM Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
+    container.innerHTML = `<div class="form-shell" style="margin-bottom:16px;padding:16px 20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:.875rem;font-weight:800;color:var(--ink)">Global Filters &amp; Controls</h3><button class="btn btn-ghost" id="dash-reset-btn" style="padding:4px 10px;font-size:.75rem">Reset All Filters</button></div><div class="grid g4" id="dash-filters"><label class="f">Start Date<input type="date" id="dash-start" value="${defStart}"/></label><label class="f">End Date<input type="date" id="dash-end" value="${defEnd}"/></label><label class="f">Urgency<div class="dd-wrapper" id="dd-urgency-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(URGENCY).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-urgency" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Status<div class="dd-wrapper" id="dd-status-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu"><label class="chk"><input type="checkbox" name="dash-status" value="open"/> <span>Open</span></label><label class="chk"><input type="checkbox" name="dash-status" value="progress"/> <span>In progress</span></label><label class="chk"><input type="checkbox" name="dash-status" value="done"/> <span>Completed</span></label></div></div></label><label class="f">Category<div class="dd-wrapper" id="dd-cat-wrapper"><button type="button" class="dd-btn">All</button><div class="dd-menu">${Object.entries(CATS).map(([k,v])=>`<label class="chk"><input type="checkbox" name="dash-cat" value="${k}"/> <span>${v}</span></label>`).join('')}</div></div></label><label class="f">Line/Equipment - No.<input type="text" id="dash-line" list="dl-lines" placeholder="e.g. BM1-04" autocomplete="off"/><datalist id="dl-lines">${allLinesNos.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label><label class="f">Conveyor/Item<input type="text" id="dash-conveyor" list="dl-conv" placeholder="e.g. TRANSFER CONVEYOR" autocomplete="off"/><datalist id="dl-conv">${allConveyors.map(x=>`<option value="${x}"></option>`).join('')}</datalist></label></div></div><div class="kpi-grid" id="dash-kpi-grid"></div><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Records Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
     
     <div class="charts-grid">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0">Classification</h3>
+          <button class="export-chart-btn" id="save-class-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
+        </div>
+        <div class="hint">Distribution of filtered records by classification</div>
+        <div style="height:230px;position:relative;width:100%"><canvas id="acm-class-chart"></canvas></div>
+      </div>
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h3 style="margin:0">Category Overview</h3>
@@ -683,14 +679,6 @@
         <div class="hint">Frequency of faults by category across filtered records</div>
         <div style="height:230px;position:relative;width:100%"><canvas id="acm-category-chart"></canvas></div>
       </div>
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h3 style="margin:0">Urgency Distribution</h3>
-          <button class="export-chart-btn" id="save-urg-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
-        </div>
-        <div class="hint">Distribution of filtered records by urgency level</div>
-        <div style="height:230px;position:relative;width:100%"><canvas id="acm-urgency-chart"></canvas></div>
-      </div>
     </div>
     
     <div class="table-panel"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.875rem;font-weight:800">Recent Maintenance Records</h3><button id="dash-export-btn" class="btn-export-excel" title="Export this table to Excel"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>Export</button></div><div id="dash-table-container"></div></div>
@@ -698,7 +686,7 @@
     <div id="full-view-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,0.85); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
       <div id="full-view-modal-content" style="background:var(--paper); width:96%; height:96%; border-radius:14px; display:flex; flex-direction:column; padding:20px; box-shadow:0 12px 32px rgba(0,0,0,0.3); overflow:hidden;">
          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-shrink:0;">
-            <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">ACM Timeline - Full View</h3>
+            <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">Records Timeline - Full View</h3>
             <div class="fv-toolbar-actions" style="display:flex; gap:8px;">
                 <button class="btn btn-primary" id="full-view-export-btn" style="background:var(--ok);">Save as JPEG</button>
                 <button class="btn btn-ghost" id="full-view-close-btn" style="background:var(--line);">Close</button>
@@ -737,11 +725,11 @@
     document.getElementById('dash-export-btn').addEventListener('click', () => {
       const filteredForExport = getFilteredDashboardRecords().sort((a,b)=>b.createdAt-a.createdAt);
       if(filteredForExport.length === 0) return showModal("Export Failed", "No record to export based on current filters.", "alert", true);
-      const csvRows = [['Record No.', 'Date Issued', 'Start Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'ECD', 'End Date', 'Status']];
+      const csvRows = [['Record No.', 'Date Issued', 'Classification', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'Status']];
       filteredForExport.forEach(r => {
         const st = getStatus(r), urg = URGENCY[r.urgency] || '';
         let catList = []; if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
-        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${r.startDate ? fmtDate({happeningDate: r.startDate}) : ''}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({happeningDate: r.ecd}) : ''}"`, `"${r.endDate ? fmtDate({happeningDate: r.endDate}) : ''}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
+        csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${r.maintenanceType||''}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
       });
       const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e=>e.join(",")).join("\n")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
@@ -777,7 +765,7 @@
 
     bindJPEGExport('save-chart-btn', 'ACM_Timeline.jpg');
     bindJPEGExport('save-cat-btn', 'Fault_Category.jpg');
-    bindJPEGExport('save-urg-btn', 'Urgency_Distribution.jpg');
+    bindJPEGExport('save-class-btn', 'Classification_Distribution.jpg');
     bindJPEGExport('full-view-export-btn', 'ACM_Timeline_FullView.jpg', 'full-view-modal-content');
 
     ensureChartJs(() => {
@@ -1002,10 +990,10 @@
         } 
       };
 
-      const urgCtx = document.getElementById('acm-urgency-chart');
-      if (urgCtx) {
-        if(urgencyChart) urgencyChart.destroy();
-        urgencyChart = new Chart(urgCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:['1 month', '3 months', '6 months', '12 months'], datasets:[{data:[0,0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} record${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
+      const classCtx = document.getElementById('acm-class-chart');
+      if (classCtx) {
+        if(classChart) classChart.destroy();
+        classChart = new Chart(classCtx, { type: 'doughnut', plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin], data: { labels:INPUT_TABS, datasets:[{data:[0,0,0,0], backgroundColor:['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor:['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth:1, hoverOffset:4}] }, options: { responsive:true, maintainAspectRatio:false, cutout:'45%', plugins:{ legend:{position:'right', labels:{usePointStyle:true, pointStyle:'circle', boxWidth:8, font:{size:11}}}, tooltip:{ backgroundColor:'rgba(17, 24, 39, 0.95)', titleFont:{size:13, weight:'bold'}, bodyFont:{size:12}, padding:10, cornerRadius:8, callbacks:{ label: c => ` ${c.label||''}: ${c.raw||0} record${c.raw!==1?'s':''} (${Math.round(((c.raw||0)/(c.chart._metasets[c.datasetIndex].total||1))*100)}%)` } } } } });
       }
 
       updateDashboardUI();
@@ -1031,13 +1019,13 @@
     let igBase = r.issuedGroup || ''; 
     if(igBase.toUpperCase().startsWith('OTHER:')) igBase = 'Other';
     
-    ['happeningDate', 'issuedBy', 'reportNo', 'title', 'area', 'subArea', 'areaNo'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
+    ['happeningDate', 'issuedBy', 'reportNo', 'title', 'area', 'subArea', 'areaNo', 'maintenanceType'].forEach(k => { if(!checkReq(r[k])) container.querySelector(`[data-path="${k}"]`)?.classList.add('err-highlight'); });
     
     if (igBase) {
-        if(!checkReq(r.lineEquipment)) container.querySelector(`[data-path="lineEquipment"]`)?.classList.add('err-highlight');
         let needsEquipNo = igBase !== 'Other' && igBase !== 'Maintenance';
         let needsConvItem = ['Conveyor Line', 'Equipment/Tool'].includes(igBase);
         
+        if(!checkReq(r.lineEquipment)) container.querySelector(`[data-path="lineEquipment"]`)?.classList.add('err-highlight');
         if (needsEquipNo && !checkReq(r.equipNo)) container.querySelector(`[data-path="equipNo"]`)?.classList.add('err-highlight');
         if (needsConvItem && !checkReq(r.conveyorItem)) container.querySelector(`[data-path="conveyorItem"]`)?.classList.add('err-highlight');
     }
@@ -1055,7 +1043,7 @@
     if (!r) { 
         r = blankRecord(); 
         r.reportNo = getNextReportNo(); 
-        r.maintenanceType = 'Contract Management'; 
+        r.maintenanceType = ''; 
         state.records.unshift(r); 
         state.activeId = r.createdAt; 
         state.isDirty = false; 
@@ -1148,7 +1136,7 @@
             <div class="sec-title">Classification</div>
             <div class="grid g2">
                 ${field('Record No. (BHS/Record)','reportNo',r.reportNo,'text','readonly style="background:var(--line);cursor:not-allowed"')}
-                ${selectField('Classification','maintenanceType',r.maintenanceType,CLASSIFICATION_OPTS)}
+                ${selectField('Classification','maintenanceType',r.maintenanceType,INPUT_TABS)}
             </div>
             <div class="grid g3" style="margin-top:10px">
                 ${field('Date Issued','happeningDate',r.happeningDate,'date')}
@@ -1255,7 +1243,7 @@
       else {
         const statusLogic = getStatus(r); r.status = statusLogic==='done'?'Completed':statusLogic==='progress'?'In progress':'Open'; r.isDraft = false; state.showErrors = false; state.isDirty = false; state.cleanActiveRecord = JSON.parse(JSON.stringify(r)); saveRecords();
         const btn = container.querySelector('#acm-submit-btn'), ogTxt = btn.innerHTML; btn.innerHTML = 'Saving to Sheet ⏳'; btn.style.pointerEvents = 'none';
-        try { await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:new URLSearchParams({payload: JSON.stringify(r)}) }); setTimeout(async () => { await showModal("Success", "Record saved to Google Sheets!", "alert"); render(); }, 1200); } 
+        try { await fetch(WEB_APP_URL, { method:'POST', mode:'no-cors', body:newSearchParams({payload: JSON.stringify(r)}) }); setTimeout(async () => { await showModal("Success", "Record saved to Google Sheets!", "alert"); render(); }, 1200); } 
         catch (e) { console.error(e); await showModal("Error", "An unexpected error occurred. Saved locally.", "alert", true); btn.innerHTML = ogTxt; btn.style.pointerEvents = 'auto'; }
       }
     });
@@ -1333,7 +1321,14 @@
         if (path === 'area') { r.subArea = 'All'; r.areaNo = 'All'; saveRecords(); render(); return; }
         if (path === 'subArea') { r.areaNo = 'All'; saveRecords(); render(); return; }
         
-        if(path === 'lineEquipment') { r.equipNo = ''; container.querySelector('[data-path="equipNo"]').value=''; r.conveyorItem = ''; container.querySelector('[data-path="conveyorItem"]').value=''; const nL = container.querySelector('#no-list'); if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } }
+        if(path === 'lineEquipment') { 
+            r.equipNo = ''; 
+            const eEl = container.querySelector('[data-path="equipNo"]'); if(eEl) eEl.value=''; 
+            r.conveyorItem = ''; 
+            const cEl = container.querySelector('[data-path="conveyorItem"]'); if(cEl) cEl.value=''; 
+            const nL = container.querySelector('#no-list'); 
+            if(nL) { const opts = (r.lineEquipment && EQUIP_DB[r.lineEquipment])?Object.keys(EQUIP_DB[r.lineEquipment]).sort():[]; if(r.lineEquipment) opts.push('OTHERS'); nL.innerHTML = opts.map(o=>`<option value="${o}"></option>`).join(''); } 
+        }
         
         if((path === 'lineEquipment' || path === 'equipNo') && (!igBase || igBase === 'Conveyor Line')) { 
             r.conveyorItem = (r.lineEquipment && r.equipNo) ? (r.equipNo==='OTHERS'?'OTHERS':((EQUIP_DB[r.lineEquipment] && EQUIP_DB[r.lineEquipment][r.equipNo]) || '')) : ''; 
