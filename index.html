@@ -1469,7 +1469,7 @@
         if (!Array.isArray(clm.approval)) clm.approval = [clm.approval || {}];
         
         const clmRow = (label, key, idx, obj, phOwner, statusOpts, phRemarks) => {
-            const pathBase = `clm.${key}${idx !== null ? \`.\${idx}\` : ''}`;
+            const pathBase = "clm." + key + (idx !== null ? "." + idx : "");
             const selOpts = `<option value=""></option>` + statusOpts.map(opt => `<option value="${opt}" ${obj.status===opt?'selected':''}>${opt}</option>`).join('');
             
             let actionBtns = '';
