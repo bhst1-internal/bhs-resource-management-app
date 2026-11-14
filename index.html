@@ -107,7 +107,7 @@
   #acm-root #acm-modal-actions{display:flex;justify-content:flex-end;gap:8px}
 
   /* Custom Hover Tooltip */
-  #acm-custom-tooltip { position: fixed; background: rgba(17, 24, 39, 0.95); color: #fff; padding: 12px; border-radius: 8px; pointer-events: none; font-size: 11px; z-index: 999999; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); line-height: 1.5; white-space: pre-wrap; transition: opacity 0.15s ease; opacity: 0; }
+  #acm-custom-tooltip { position: fixed; background: rgba(17, 24, 39, 0.95); color: #fff; padding: 10px; border-radius: 8px; pointer-events: none; font-size: 12px; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; z-index: 999999; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); line-height: 1.5; white-space: pre-wrap; transition: opacity 0.15s ease; opacity: 0; }
   #acm-custom-tooltip.show { opacity: 1; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
@@ -213,7 +213,7 @@
     return { createdAt: Date.now(), isDraft: true, status: '', maintenanceType: 'Contract Management', reportNo: '', happeningDate: '', ecd: '', startDate: '', endDate: '', contractDuration: '', dd:'', mm:'', yy:'', issuedBy:'', issuedGroup:'', title:'', area:'', subArea:'', areaNo:'', conveyorItem:'', lineEquipment:'', equipNo:'', cat1: {}, urgency:'', reasonDetail:'', clm: { creation: [{date:'',owner:'',status:'',remarks:''}], negotiations: [{date:'',owner:'',status:'',remarks:''}], approval: [{date:'',owner:'',status:'',remarks:''}], monitoring: {date:'',owner:'',status:'',remarks:''}, renewal: {date:'',owner:'',status:'',remarks:''} }, vendorSla: Array.from({length:6}, () => ({actual:'', status:'', pic:'', remarks:''})), vendorMonitoring: [], vendorNameBase: '', vendorNameOther: '', vendorContactPerson: '', vendorAddress: '', vendorContactNumber: '' };
   }
 
-  let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false, vendorSlaTableVisible: false, contractClmTableVisible: false };
+  let state = { tab: 'Dashboard', records: [], activeId: null, cleanActiveRecord: null, isDirty: false, loaded: false, showErrors: false, vendorSlaTableVisible: false, contractClmTableVisible: false, showTimelineDates: false };
   const checkReq = v => v != null && String(v).trim() !== '';
 
   async function loadRecords() {
@@ -413,23 +413,27 @@
       let targetStr = '—';
       if (t0 && URGENCY_MS[r.urgency]) targetStr = new Date(t0 + URGENCY_MS[r.urgency]).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
 
-      return `<div style="font-size:13px; font-weight:800; margin-bottom:6px; color:#60a5fa">Record No: ${r.reportNo||'Draft'}</div>` +
-             `<strong>Date Issued:</strong> ${fmtDate(r)}<br/>` +
-             `<strong>Title:</strong> ${r.title||'—'}<br/>` +
-             `<strong>Line/Equipment:</strong> ${r.lineEquipment||'—'}<br/>` +
-             `<strong>No.:</strong> ${r.equipNo||'—'}<br/>` +
-             `<strong>Category:</strong> ${cL.length?cL.join(', '):'—'}<br/>` +
-             `<strong>Urgency:</strong> ${URGENCY[r.urgency]||'—'}<br/>` +
-             `<strong>ECD:</strong> ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'}<br/>` +
-             `<strong>Target (SLA):</strong> ${targetStr}`;
+      return `<div style="font-size:13px; font-weight:bold; margin-bottom:4px; color:#fff">Record No: ${r.reportNo||'Draft'}</div>` +
+             `<div style="font-size:12px; font-weight:normal; color:#fff">` +
+             `Date Issued: ${fmtDate(r)}<br/>` +
+             `Title: ${r.title||'—'}<br/>` +
+             `Line/Equipment: ${r.lineEquipment||'—'}<br/>` +
+             `No.: ${r.equipNo||'—'}<br/>` +
+             `Category: ${cL.length?cL.join(', '):'—'}<br/>` +
+             `Urgency: ${URGENCY[r.urgency]||'—'}<br/>` +
+             `ECD: ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'}<br/>` +
+             `Target (SLA): ${targetStr}` +
+             `</div>`;
   }
 
   function buildMilestoneTooltip(m) {
-      return `<div style="font-size:12px; font-weight:800; margin-bottom:6px; color:#a78bfa">${m.title}</div>` +
-             `<strong>Date:</strong> ${fmtDate({happeningDate: m.dateStr})}<br/>` +
-             `<strong>PIC / Owner:</strong> ${m.pic||'—'}<br/>` +
-             `<strong>Status:</strong> ${m.status||'—'}<br/>` +
-             `<div style="max-width:240px; white-space:normal; margin-top:4px;"><strong>Remarks:</strong> ${m.remarks||'—'}</div>`;
+      return `<div style="font-size:13px; font-weight:bold; margin-bottom:4px; color:#fff">${m.title}</div>` +
+             `<div style="font-size:12px; font-weight:normal; color:#fff">` +
+             `Date: ${fmtDate({happeningDate: m.dateStr})}<br/>` +
+             `PIC / Owner: ${m.pic||'—'}<br/>` +
+             `Status: ${m.status||'—'}<br/>` +
+             `<div style="max-width:240px; white-space:normal; margin-top:4px;">Remarks: ${m.remarks||'—'}</div>` +
+             `</div>`;
   }
 
   function updateDashboardUI() {
@@ -804,13 +808,15 @@
                                   ctx.fill();
 
                                   // Date text layout (centered under the new box)
-                                  const dObj = new Date(m.t);
-                                  const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
-                                  ctx.font = 'bold 9.5px sans-serif';
-                                  ctx.fillStyle = '#4b5563';
-                                  ctx.textAlign = 'center';
-                                  ctx.textBaseline = 'middle';
-                                  ctx.fillText(dateStr, sx + (w_box/2), yCenter + (h / 2) + 10);
+                                  if (state.showTimelineDates) {
+                                      const dObj = new Date(m.t);
+                                      const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
+                                      ctx.font = 'bold 9.5px sans-serif';
+                                      ctx.fillStyle = '#4b5563';
+                                      ctx.textAlign = 'center';
+                                      ctx.textBaseline = 'middle';
+                                      ctx.fillText(dateStr, sx + (w_box/2), yCenter + (h / 2) + 10);
+                                  }
                               }
                           }
                       });
@@ -913,7 +919,7 @@
     </div></div>
     
     <div class="kpi-grid" id="dash-kpi-grid"></div>
-    <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.<br/><br/><b>Legend: </b><span style="display:inline-block; border-bottom: 2px dashed #9ca3af; width:20px; margin-right:4px;"></span> Urgency Phase (Date Issued to ECD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.65); border:1px solid #2563eb; vertical-align:middle; margin-right:4px;"></span> Active Execution</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
+    <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="toggle-dates-btn" title="Toggle Dates" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>Date</button><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Note:</b> Drag inside chart area to pan (up/down/left/right). Scroll mouse wheel to zoom. Double-click to reset view.<br/><br/><b>Legend: </b><span style="display:inline-block; border-bottom: 2px dashed #9ca3af; width:20px; margin-right:4px;"></span> Urgency Phase (Date Issued to ECD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.65); border:1px solid #2563eb; vertical-align:middle; margin-right:4px;"></span> Active Execution</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
     
     <div class="charts-grid">
       <div class="panel">
@@ -941,6 +947,7 @@
          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-shrink:0;">
             <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">Record Timeline - Full View</h3>
             <div class="fv-toolbar-actions" style="display:flex; gap:8px;">
+                <button class="btn btn-ghost" id="fv-toggle-dates-btn" style="background:var(--line); padding:4px 10px; font-size:.75rem;">Date</button>
                 <button class="btn btn-primary" id="full-view-export-btn" style="background:var(--ok);">Save as JPEG</button>
                 <button class="btn btn-ghost" id="full-view-close-btn" style="background:var(--line);">Close</button>
             </div>
@@ -968,6 +975,39 @@
     
     ['dash-start', 'dash-end'].forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('change', updateDashboardUI); });
     
+
+    const toggleDates = () => {
+        state.showTimelineDates = !state.showTimelineDates;
+        [document.getElementById('toggle-dates-btn'), document.getElementById('fv-toggle-dates-btn')].forEach(btn => {
+            if (btn) {
+                if (state.showTimelineDates) {
+                    btn.style.background = 'var(--paper)';
+                    btn.style.color = 'var(--accent)';
+                    btn.style.borderColor = 'var(--accent)';
+                } else {
+                    btn.style.background = btn.id === 'fv-toggle-dates-btn' ? 'var(--line)' : 'var(--bg)';
+                    btn.style.color = 'var(--text-sec)';
+                    btn.style.borderColor = 'var(--line)';
+                }
+            }
+        });
+        if (timelineChart) timelineChart.update('none');
+        if (window.fullViewChart) window.fullViewChart.update('none');
+    };
+    const bTd = document.getElementById('toggle-dates-btn');
+    if (bTd) bTd.addEventListener('click', toggleDates);
+    const bFvTd = document.getElementById('fv-toggle-dates-btn');
+    if (bFvTd) bFvTd.addEventListener('click', toggleDates);
+    
+    // Set initial button styles
+    [bTd, bFvTd].forEach(btn => {
+        if(btn && state.showTimelineDates) {
+            btn.style.background = 'var(--paper)';
+            btn.style.color = 'var(--accent)';
+            btn.style.borderColor = 'var(--accent)';
+        }
+    });
+
     document.getElementById('dash-reset-btn').addEventListener('click', () => {
       document.getElementById('dash-start').value = defStart; document.getElementById('dash-end').value = defEnd;
       document.querySelectorAll('input[name="dash-class"], input[name="dash-crit"], input[name="dash-cat"], input[name="dash-vendor"], input[name="dash-duration"]').forEach(cb => cb.checked = false);
