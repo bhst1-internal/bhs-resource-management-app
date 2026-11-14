@@ -408,21 +408,20 @@
   }
 
   function buildRecordTooltip(r) {
-      let cL=[]; if(r.cat1)Object.keys(CATS).forEach(k=>{if(r.cat1[k])cL.push(CATS[k])}); 
-      
-      let ecdStr = r.ecd ? fmtDate({happeningDate: r.ecd}) : '—';
-      let urgStr = URGENCY[r.urgency] || '—';
-      let startStr = r.startDate ? fmtDate({happeningDate: r.startDate}) : '—';
-      let endStr = r.endDate ? fmtDate({happeningDate: r.endDate}) : '—';
-
-      return `<div style="font-size:13px; font-weight:bold; margin-bottom:4px; color:#60a5fa">Record No: ${r.reportNo||'Draft'}</div>` +
+      let cL=[]; 
+      if(r.cat1) {
+          Object.keys(CATS).forEach(k=>{ if(r.cat1[k]) cL.push(CATS[k]) }); 
+      }
+      return `<div style="font-size:13px; font-weight:bold; margin-bottom:4px; color:#fff">` +
+               `Record No: <span style="color:#60a5fa">${r.reportNo||'Draft'}</span>` +
+             `</div>` +
              `<div style="font-size:12px; font-weight:normal; color:#fff">` +
-             `Date Issued: ${fmtDate(r)}<br/>` +
-             `Title: ${r.title||'—'}<br/>` +
-             `Category: ${cL.length?cL.join(', '):'—'}<br/>` +
-             `ECD (Urgency): ${ecdStr} (${urgStr})<br/>` +
-             `Contract Start Date: ${startStr} &nbsp;|&nbsp; Contract End Date: ${endStr}<br/>` +
-             `Contract Duration: ${r.contractDuration||'—'}` +
+               `Date Issued: ${fmtDate(r)}<br/>` +
+               `Title: ${r.title||'—'}<br/>` +
+               `Category: ${cL.length?cL.join(', '):'—'}<br/>` +
+               `ECD (Urgency): ${r.ecd ? fmtDate({happeningDate: r.ecd}) : '—'} (${URGENCY[r.urgency]||'—'})<br/>` +
+               `Contract Start Date: ${r.startDate ? fmtDate({happeningDate: r.startDate}) : '—'} | Contract End Date: ${r.endDate ? fmtDate({happeningDate: r.endDate}) : '—'}<br/>` +
+               `Contract Duration: ${r.contractDuration||'—'}` +
              `</div>`;
   }
 
@@ -490,7 +489,7 @@
         let totalX = [t0, endOfAction];
         let targetT = t0 + (URGENCY_MS[r.urgency] || 0);
         
-        let labelStr = r.reportNo || 'Draft'; while (tlLabels.includes(labelStr)) labelStr += '​'; 
+        let labelStr = r.reportNo || 'Draft'; while (tlLabels.includes(labelStr)) labelStr += '\u200B'; 
         tlLabels.push(labelStr);
         
         const dsTarget = statusLogic === 'done' ? dsDone : (statusLogic === 'progress' ? dsProg : dsOpen);
@@ -1027,8 +1026,7 @@
         let catList = []; if(r.cat1) Object.keys(CATS).forEach(k => { if(r.cat1[k]) catList.push(CATS[k]); });
         csvRows.push([ `"${r.reportNo||''}"`, `"${fmtDate(r)}"`, `"${r.startDate ? fmtDate({happeningDate: r.startDate}) : ''}"`, `"${(r.title||'').replace(/"/g,'""')}"`, `"${r.area||''}"`, `"${r.subArea||''}"`, `"${r.areaNo||''}"`, `"${r.lineEquipment||''}"`, `"${r.equipNo||''}"`, `"${(r.conveyorItem||'').replace(/"/g,'""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({happeningDate: r.ecd}) : ''}"`, `"${r.endDate ? fmtDate({happeningDate: r.endDate}) : ''}"`, `"${st==='done'?'Completed':st==='progress'?'In progress':'Open'}"` ]);
       });
-      const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["﻿" + csvRows.map(e=>e.join(",")).join("
-")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e=>e.join(",")).join("\n")], {type:'text/csv;charset=utf-8;'})); link.download = "Filtered_Maintenance_Records.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     });
 
     document.getElementById('full-view-btn').addEventListener('click', () => {
@@ -1567,9 +1565,7 @@
     </div>`;
 
     updateHighlights(container, r);
-    const wrapAction = async (cb) => { if(state.isDirty){ const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.
-
-Please click "Submit ✔" to record your data, or click "Discard Data" to abandon your recent changes.", "unsaved"); if(!discard) return false; revertActiveRecord(); } return true; };
+    const wrapAction = async (cb) => { if(state.isDirty){ const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if(!discard) return false; revertActiveRecord(); } return true; };
 
     container.querySelector('#acm-recpick').addEventListener('change', async (e) => { if(await wrapAction()){ state.showErrors = false; state.activeId = String(e.target.value); state.isDirty = false; render(); } else e.target.value = state.activeId; });
     container.querySelector('#acm-new-btn').addEventListener('click', async () => { if(await wrapAction()){ await showModal("Notice", "Please enter accurate INPUT for records", "alert"); const nr = blankRecord(); nr.reportNo = getNextReportNo(); state.records.unshift(nr); state.activeId = nr.createdAt; state.showErrors = false; state.isDirty = false; saveRecords(); render(); } });
@@ -1607,10 +1603,7 @@ Please click "Submit ✔" to record your data, or click "Discard Data" to abando
       if((r.reasonDetail||'').trim().split(/\s+/).filter(w=>w.length>0).length < 2) errs.push("[Detail Description] Please write at least 2 words");
       updateHighlights(container, r);
 
-      if(errs.length) await showModal("Submit Failed", "Please complete the highlighted required data:
-
-- " + errs.join("
-- "), "alert", true);
+      if(errs.length) await showModal("Submit Failed", "Please complete the highlighted required data:\n\n- " + errs.join("\n- "), "alert", true);
       else {
         const statusLogic = getStatus(r); r.status = statusLogic==='done'?'Completed':statusLogic==='progress'?'In progress':'Open'; r.isDraft = false; state.showErrors = false; state.isDirty = false; state.cleanActiveRecord = JSON.parse(JSON.stringify(r)); saveRecords();
         const btn = container.querySelector('#acm-submit-btn'), ogTxt = btn.innerHTML; btn.innerHTML = 'Saving to Sheet ⏳'; btn.style.pointerEvents = 'none';
@@ -2269,9 +2262,7 @@ Please click "Submit ✔" to record your data, or click "Discard Data" to abando
     ROOT.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', async () => { 
         const targetTab = b.getAttribute('data-tab');
-        if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.
-
-Please click "Submit ✔" to record your data, or click "Discard Data" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
+        if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) { const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved"); if (!discard) return; revertActiveRecord(); }
         state.tab = targetTab; render(); 
       });
     });
