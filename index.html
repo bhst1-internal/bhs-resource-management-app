@@ -502,6 +502,11 @@
         }
 
         // --- Extract Milestones ---
+        let ecdTs = r.ecd ? getTs(r.ecd) : null;
+        let phase1Target = ecdTs || (t0 + (URGENCY_MS[r.urgency] || 0));
+        let endTs = r.endDate ? getTs(r.endDate) : null;
+        let phase2Target = endTs || phase1Target;
+
         if (r.clm) {
             const extract = (arr, title) => {
                 if(Array.isArray(arr)) {
@@ -509,7 +514,7 @@
                         if(item && item.date) {
                              const mTs = getTs(item.date);
                              if (mTs) {
-                                 masterMilestones.push({ y: labelStr, t: mTs, dateStr: item.date, title: title, pic: item.owner, status: item.status, remarks: item.remarks });
+                                 masterMilestones.push({ y: labelStr, t: mTs, dateStr: item.date, title: title, pic: item.owner, status: item.status, remarks: item.remarks, expTs: phase1Target });
                                  if (mTs > globalMaxT) globalMaxT = mTs;
                              }
                         }
@@ -530,14 +535,13 @@
                          const pics = [...new Set((hist.metrics || []).map(m => m.pic).filter(x => x && x.trim() !== ''))].join(', ');
                          const remarks = [...new Set((hist.metrics || []).map(m => m.remarks).filter(x => x && x.trim() !== ''))].join(' | ');
                          
-                         masterMilestones.push({ y: labelStr, t: mTs, dateStr: hist.date, title: 'Vendor Monitoring History', pic: pics, status: calcStatus, remarks: remarks });
+                         masterMilestones.push({ y: labelStr, t: mTs, dateStr: hist.date, title: 'Vendor Monitoring History', pic: pics, status: calcStatus, remarks: remarks, expTs: phase2Target });
                          if (mTs > globalMaxT) globalMaxT = mTs;
                      }
                  }
             });
         }
         
-        let endTs = r.endDate ? getTs(r.endDate) : null;
         if (endTs && endTs > globalMaxT) globalMaxT = endTs;
         if (targetT > globalMaxT) globalMaxT = targetT;
         if (endOfAction > globalMaxT) globalMaxT = endOfAction;
@@ -701,26 +705,39 @@
                   if (!drawnUrgency.has(memoId)) {
                       drawnUrgency.add(memoId);
                       const t0 = raw._totalX[0], durMs = URGENCY_MS[r.urgency] || 0;
-                      if (durMs > 0) {
-                        const targetT = t0 + durMs, startX = xAxis.getPixelForValue(t0), endX = xAxis.getPixelForValue(targetT);
+                      
+                      let ecdTs = r.ecd ? getTs(r.ecd) : null;
+                      let startTs = r.startDate ? getTs(r.startDate) : null;
+                      let endTs = r.endDate ? getTs(r.endDate) : null;
+                      
+                      let urgEndTs = ecdTs || (t0 + durMs);
+
+                      if (urgEndTs > t0) {
+                        const startX = xAxis.getPixelForValue(t0);
+                        const endX = xAxis.getPixelForValue(urgEndTs);
                         const w = endX - startX, boxH = h + 8, boxY = yCenter - boxH/2;
-                        ctx.beginPath(); ctx.setLineDash([5, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = URG_COLORS[r.urgency] || '#9ca3af'; 
+                        
+                        ctx.beginPath(); 
+                        ctx.setLineDash([5, 4, 2, 4]); // dot-dash pattern
+                        ctx.lineWidth = 1.5; 
+                        ctx.strokeStyle = URG_COLORS[r.urgency] || '#9ca3af'; 
                         if(ctx.roundRect) { ctx.roundRect(startX, boxY, w, boxH, 6); } else { ctx.rect(startX, boxY, w, boxH); }
                         ctx.stroke();
                       }
                       
                       // 3. Contract Duration Dashed Box
-                      let startTs = r.startDate ? getTs(r.startDate) : null;
-                      let endTs = r.endDate ? getTs(r.endDate) : null;
                       if (startTs && endTs) {
                           const sx = xAxis.getPixelForValue(startTs);
                           const ex = xAxis.getPixelForValue(endTs);
                           const w = ex - sx;
+                          const boxH = h + 8, boxY = yCenter - boxH/2; // Matches exact height of Urgency box
+                          
                           ctx.beginPath();
-                          ctx.setLineDash([4, 4]);
+                          ctx.setLineDash([5, 5]); // dash pattern
                           ctx.lineWidth = 1.5;
                           ctx.strokeStyle = '#8b5cf6'; // Purple
-                          ctx.strokeRect(sx, yCenter - (h/2 + 6), w, h + 12);
+                          if(ctx.roundRect) { ctx.roundRect(sx, boxY, w, boxH, 6); } else { ctx.rect(sx, boxY, w, boxH); }
+                          ctx.stroke();
                       }
 
                       // 4. Contract Execution Solid Bar (Overlay)
@@ -729,7 +746,6 @@
                           const signedItem = r.clm.approval.slice().reverse().find(a => a.status === 'Signed');
                           if (signedItem && signedItem.date) signedTs = getTs(signedItem.date);
                       }
-                      let ecdTs = r.ecd ? getTs(r.ecd) : null;
                       
                       if (signedTs && startTs && endTs) {
                           let contractStart = (ecdTs && signedTs > ecdTs) ? signedTs : startTs;
@@ -753,10 +769,9 @@
                       }
                   }
                   
-                  // 5. Draw Milestone Circles & Dates
+                  // 5. Draw Date Records (Milestone Boxes)
                   if (chart.data._masterMilestones) {
                       const milestones = chart.data._masterMilestones.filter(m => m.y === raw.y);
-                      
                       const uniqueTimes = new Set(); // Prevent exact overlapping visually
                       
                       milestones.forEach(m => {
@@ -765,22 +780,37 @@
                               
                               if (!uniqueTimes.has(m.t)) {
                                   uniqueTimes.add(m.t);
-                                  ctx.setLineDash([]);
-                                  ctx.beginPath();
-                                  ctx.arc(sx, yCenter, 4.5, 0, 2 * Math.PI);
-                                  ctx.fillStyle = '#ffffff';
-                                  ctx.fill();
-                                  ctx.lineWidth = 2.5;
-                                  ctx.strokeStyle = '#8b5cf6'; 
-                                  ctx.stroke();
+                                  
+                                  // Highlight Logic
+                                  let expTs = m.expTs || (raw._totalX[0] + (URGENCY_MS[r.urgency] || 0));
+                                  let daysDiff = (expTs - m.t) / 86400000;
+                                  
+                                  let bgColor = '#059669'; // Green (within time)
+                                  if (daysDiff < 0) bgColor = '#dc2626'; // Red (exceeds time frame)
+                                  else if (daysDiff <= 3) bgColor = '#d97706'; // Yellow (within 3 days or less)
+                                  
+                                  // 1 day portion on x-axis
+                                  let sx_next = xAxis.getPixelForValue(m.t + 86400000);
+                                  let w_box = Math.max(sx_next - sx, 4); // Minimum 4px visible width
 
+                                  ctx.setLineDash([]);
+                                  ctx.fillStyle = bgColor;
+                                  ctx.beginPath();
+                                  if(ctx.roundRect) {
+                                      ctx.roundRect(sx, yCenter - h/2, w_box, h, 2);
+                                  } else {
+                                      ctx.rect(sx, yCenter - h/2, w_box, h);
+                                  }
+                                  ctx.fill();
+
+                                  // Date text layout (centered under the new box)
                                   const dObj = new Date(m.t);
                                   const dateStr = dObj.getDate() + ' ' + dObj.toLocaleString('default', { month: 'short' });
                                   ctx.font = 'bold 9.5px sans-serif';
                                   ctx.fillStyle = '#4b5563';
                                   ctx.textAlign = 'center';
                                   ctx.textBaseline = 'middle';
-                                  ctx.fillText(dateStr, sx, yCenter + (h / 2) + 10);
+                                  ctx.fillText(dateStr, sx + (w_box/2), yCenter + (h / 2) + 10);
                               }
                           }
                       });
