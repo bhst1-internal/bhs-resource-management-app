@@ -273,24 +273,26 @@
     }
     .org-viewport {
       width: 100%;
-      overflow: auto;
+      overflow: hidden;
       background: #f8fafc;
       border: 1px solid var(--line);
       border-radius: 10px;
       position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 12px;
       cursor: grab;
+      touch-action: none;
+      user-select: none;
     }
     .org-viewport:active {
       cursor: grabbing;
     }
     .org-scale-stage {
-      transform-origin: top center;
-      transition: transform 0.18s ease;
-      flex-shrink: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 720px;
+      transform-origin: 0 0;
+      will-change: transform;
     }
 
     /* Org Chart Canvas (1280 x 720 exact proportional design) */
@@ -751,14 +753,14 @@
       { type: 'KPI (Safety)', name: 'HSE & Permit Compliance', target: '100% adherence to safety rules and Permit-to-Work (PTW) protocols.', measure: 'Number of safety audits passed without violations or near-misses.' }
     ];
 
-    /* 6-Page Company Organization Chart Metadata */
+    /* 6-Page Company Organization Chart Metadata (Ordered per user specification) */
     const ORG_PAGES = [
-      { id: 1, short: 'Page 1: Office Hour', title: 'Office Hour Organization Chart', subtitle: 'Baggage Handling & Screening Maintenance (Terminal 1)' },
-      { id: 2, short: 'Page 2: Shift A', title: 'BHS Maintenance — Shift A', subtitle: 'Mechanical, Electrical & Screening System' },
-      { id: 3, short: 'Page 3: Shift B', title: 'BHS Maintenance — Shift B', subtitle: 'Mechanical, Electrical & Screening System' },
-      { id: 4, short: 'Page 4: Shift C', title: 'BHS Maintenance — Shift C', subtitle: 'Mechanical, Electrical & Screening System' },
-      { id: 5, short: 'Page 5: Shift D', title: 'BHS Maintenance — Shift D', subtitle: 'Mechanical, Electrical & Screening System' },
-      { id: 6, short: 'Page 6: Master Chart', title: 'Complete Organization Chart', subtitle: 'Integrated Office Hour & Shift Operations (Shifts A–D)' }
+      { id: 6, short: 'Master Chart', title: 'Complete Organization Chart', subtitle: 'Integrated Office Hour & Shift Operations (Shifts A–D)' },
+      { id: 1, short: 'Office Hour', title: 'Office Hour Organization Chart', subtitle: 'Baggage Handling & Screening Maintenance (Terminal 1)' },
+      { id: 2, short: 'Shift A', title: 'BHS Maintenance — Shift A', subtitle: 'Mechanical, Electrical & Screening System' },
+      { id: 3, short: 'Shift B', title: 'BHS Maintenance — Shift B', subtitle: 'Mechanical, Electrical & Screening System' },
+      { id: 4, short: 'Shift C', title: 'BHS Maintenance — Shift C', subtitle: 'Mechanical, Electrical & Screening System' },
+      { id: 5, short: 'Shift D', title: 'BHS Maintenance — Shift D', subtitle: 'Mechanical, Electrical & Screening System' }
     ];
 
     /* Floating Hover Tooltip Container */
@@ -864,11 +866,13 @@
       vendorSlaTableVisible: false,
       contractClmTableVisible: false,
       showTimelineDates: false,
-      orgPage: 1,
+      orgPage: 6,
       orgSearch: '',
       orgRoleFilter: 'ALL',
       orgZoomMode: 'fit',
-      orgZoomLevel: 0.9
+      orgZoomLevel: 0.9,
+      orgPanX: 0,
+      orgPanY: 0
     };
 
     const checkReq = v => v != null && String(v).trim() !== '';
@@ -4033,6 +4037,8 @@
 
     function renderManpowerManagement(container) {
       const curPageObj = ORG_PAGES.find(p => p.id === state.orgPage) || ORG_PAGES[0];
+      const pageOrder = ORG_PAGES.map(p => p.id);
+      const curIdx = pageOrder.indexOf(state.orgPage);
 
       const roleChips = [
         { key: 'ALL', label: 'All Levels', color: '#334155' },
@@ -4059,14 +4065,9 @@
               `).join('')}
             </div>
 
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <button type="button" class="btn btn-ghost" id="org-prev-btn" style="padding:5px 10px; font-size:.75rem;" title="Previous Chart Page" ${state.orgPage === 1 ? 'disabled style="opacity:0.45;padding:5px 10px;font-size:.75rem;cursor:not-allowed"' : ''}>◀ Prev</button>
-              <button type="button" class="btn btn-ghost" id="org-next-btn" style="padding:5px 10px; font-size:.75rem;" title="Next Chart Page" ${state.orgPage === 6 ? 'disabled style="opacity:0.45;padding:5px 10px;font-size:.75rem;cursor:not-allowed"' : ''}>Next ▶</button>
-              <button type="button" class="btn btn-ghost" id="org-zoom-out" style="padding:5px 9px; font-size:.75rem;" title="Zoom Out">−</button>
-              <button type="button" class="btn btn-ghost" id="org-zoom-fit" style="padding:5px 10px; font-size:.75rem;" title="Fit Chart to Screen">${state.orgZoomMode === 'fit' ? 'Fit ✓' : 'Fit'}</button>
-              <button type="button" class="btn btn-ghost" id="org-zoom-in" style="padding:5px 9px; font-size:.75rem;" title="Zoom In">+</button>
-              <button type="button" class="btn btn-ghost" id="org-fullview-btn" style="padding:5px 10px; font-size:.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-expand"></i> Full View</button>
-              <button type="button" class="btn btn-primary" id="org-export-jpg" style="background:var(--ok); padding:5px 11px; font-size:.75rem; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-download"></i> JPEG</button>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="export-chart-btn" id="org-fullview-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button>
+              <button type="button" class="export-chart-btn" id="org-export-jpg" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
             </div>
           </div>
 
@@ -4080,22 +4081,25 @@
               `).join('')}
             </div>
 
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span id="org-match-count" style="font-size:.72rem; font-weight:700; color:var(--accent);"></span>
               <div class="org-search-wrap">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="org-search-input" placeholder="Search name, role, or shift..." value="${state.orgSearch.replace(/"/g, '&quot;')}"/>
                 <button type="button" id="org-search-clear" title="Clear search">✕</button>
               </div>
+              <button type="button" class="btn btn-ghost" id="org-zoom-out" style="padding:4px 8px; font-size:.72rem;" title="Zoom Out">−</button>
+              <button type="button" class="btn btn-ghost" id="org-zoom-fit" style="padding:4px 9px; font-size:.72rem;" title="Fit Full View">${state.orgZoomMode === 'fit' ? 'Fit ✓' : 'Fit'}</button>
+              <button type="button" class="btn btn-ghost" id="org-zoom-in" style="padding:4px 8px; font-size:.72rem;" title="Zoom In">+</button>
             </div>
           </div>
 
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 2px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 2px; flex-wrap:wrap; gap:6px;">
             <div style="font-size:.75rem; color:var(--text-sec);">
               Viewing <b>${curPageObj.short}</b> — ${curPageObj.subtitle}
             </div>
             <div style="font-size:.72rem; color:var(--line-dark);">
-              Tip: Click any personnel box to inspect details • Drag to pan when zoomed
+              Tip: Mouse wheel to zoom • Drag to pan • Double-click to reset view • Click badge for details
             </div>
           </div>
 
@@ -4109,23 +4113,23 @@
         <!-- Full View Modal for Org Chart -->
         <div id="org-fullview-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.88); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
           <div style="background:var(--paper); width:97%; height:96%; border-radius:14px; display:flex; flex-direction:column; padding:16px 20px; box-shadow:0 16px 40px rgba(0,0,0,0.35); overflow:hidden;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-shrink:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-shrink:0; flex-wrap:wrap; gap:8px;">
               <div>
                 <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:var(--ink);">${curPageObj.title}</h3>
-                <div style="font-size:.75rem; color:var(--text-sec);">${curPageObj.subtitle}</div>
+                <div style="font-size:.75rem; color:var(--text-sec);">${curPageObj.subtitle} • Scroll wheel to zoom, drag to pan, double-click to reset</div>
               </div>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <div class="org-page-tabs">
                   ${ORG_PAGES.map(p => `
-                    <button type="button" class="org-page-btn ${state.orgPage === p.id ? 'active' : ''}" data-fv-org-page="${p.id}">${p.id === 6 ? 'Master Chart' : 'Page ' + p.id}</button>
+                    <button type="button" class="org-page-btn ${state.orgPage === p.id ? 'active' : ''}" data-fv-org-page="${p.id}">${p.short}</button>
                   `).join('')}
                 </div>
                 <button type="button" class="btn btn-primary" id="org-fv-export-btn" style="background:var(--ok); padding:6px 12px; font-size:.75rem;">Save as JPEG</button>
                 <button type="button" class="btn btn-ghost" id="org-fv-close-btn" style="padding:6px 12px; font-size:.75rem;">Close ✕</button>
               </div>
             </div>
-            <div id="org-fv-stage-wrap" style="flex:1; background:#f8fafc; border:1px solid var(--line); border-radius:10px; overflow:auto; display:flex; justify-content:center; align-items:center; padding:12px;">
-              <div id="org-fv-stage" style="transform-origin:center center;"></div>
+            <div id="org-fv-stage-wrap" style="flex:1; background:#f8fafc; border:1px solid var(--line); border-radius:10px; overflow:hidden; position:relative; cursor:grab; touch-action:none; user-select:none;">
+              <div id="org-fv-stage" style="position:absolute; top:0; left:0; width:1280px; height:720px; transform-origin:0 0; will-change:transform;"></div>
             </div>
           </div>
         </div>
@@ -4134,6 +4138,7 @@
       const canvasEl = container.querySelector('#org-canvas-active');
       const stageEl = container.querySelector('#org-scale-stage');
       const viewportEl = container.querySelector('#org-viewport');
+      let suppressCardClick = false;
 
       /* Compute Headcount KPIs dynamically from the rendered org nodes */
       function updateOrgKPIs() {
@@ -4148,7 +4153,7 @@
           { l: 'Filled Positions', v: filled, c: 'var(--ok)', s: `Active personnel assigned`, p: `<span class="kpi-pill pill-ok">On duty</span>` },
           { l: 'Vacant Positions', v: vacant, c: 'var(--crit)', s: `Open positions to fill`, p: vacant > 0 ? `<span class="kpi-pill pill-crit">Needs hiring</span>` : `<span class="kpi-pill pill-ok">100% staffed</span>` },
           { l: 'Manning Rate', v: fillRate + '%', c: fillRate >= 85 ? 'var(--ok)' : 'var(--warn)', s: `${filled} of ${total} slots filled`, p: fillRate >= 85 ? `<span class="kpi-pill pill-ok">Healthy</span>` : `<span class="kpi-pill pill-warn">Below 85%</span>` },
-          { l: 'Active Chart View', v: `Page ${state.orgPage} / 6`, c: 'var(--accent-2)', s: curPageObj.title, p: `<span class="kpi-pill pill-ok">Interactive</span>` }
+          { l: 'Active Chart View', v: `${curIdx + 1} / ${ORG_PAGES.length}`, c: 'var(--accent-2)', s: curPageObj.short, p: `<span class="kpi-pill pill-ok">Interactive</span>` }
         ];
 
         const kpiGrid = container.querySelector('#org-kpi-grid');
@@ -4194,61 +4199,160 @@
         }
       }
 
-      /* Responsive Auto-Fit & Zoom Sizing */
-      function applyOrgScale() {
-        if (!viewportEl || !stageEl) return;
-        const availW = Math.max(320, viewportEl.clientWidth - 28);
-        let scale = state.orgZoomLevel;
-        if (state.orgZoomMode === 'fit') {
-          scale = Math.min(1, availW / 1280);
-          state.orgZoomLevel = scale;
+      /* Reusable Interactive Pan & Wheel-Zoom Controller (Matches Record Timeline UX) */
+      function setupInteractivePanZoom(vpEl, stEl, isMainViewport) {
+        let zoom = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let hasMoved = false;
+        let startClientX = 0;
+        let startClientY = 0;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        function applyTransform() {
+          stEl.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+          if (isMainViewport) {
+            state.orgZoomLevel = zoom;
+            state.orgPanX = panX;
+            state.orgPanY = panY;
+          }
         }
-        stageEl.style.transform = `scale(${scale})`;
-        stageEl.style.width = '1280px';
-        stageEl.style.height = '720px';
-        viewportEl.style.height = Math.round(720 * scale + 28) + 'px';
+
+        function resetToFit() {
+          const vpW = Math.max(320, vpEl.clientWidth);
+          if (isMainViewport) {
+            const fitScale = vpW / 1280;
+            const vpH = Math.round(720 * fitScale);
+            vpEl.style.height = vpH + 'px';
+            zoom = fitScale;
+            panX = 0;
+            panY = 0;
+            state.orgZoomMode = 'fit';
+            const fitBtn = container.querySelector('#org-zoom-fit');
+            if (fitBtn) fitBtn.textContent = 'Fit ✓';
+          } else {
+            const vpH = Math.max(320, vpEl.clientHeight);
+            const fitScale = Math.min((vpW - 16) / 1280, (vpH - 16) / 720);
+            zoom = Math.max(0.35, fitScale);
+            panX = (vpW - 1280 * zoom) / 2;
+            panY = (vpH - 720 * zoom) / 2;
+          }
+          applyTransform();
+        }
+
+        vpEl.addEventListener('pointerdown', e => {
+          if (e.button !== 0) return;
+          isDragging = true;
+          hasMoved = false;
+          startClientX = e.clientX;
+          startClientY = e.clientY;
+          startPanX = panX;
+          startPanY = panY;
+          vpEl.setPointerCapture(e.pointerId);
+          vpEl.style.cursor = 'grabbing';
+        });
+
+        vpEl.addEventListener('pointermove', e => {
+          if (!isDragging) return;
+          const dx = e.clientX - startClientX;
+          const dy = e.clientY - startClientY;
+          if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            hasMoved = true;
+            if (isMainViewport) {
+              state.orgZoomMode = 'manual';
+              const fitBtn = container.querySelector('#org-zoom-fit');
+              if (fitBtn) fitBtn.textContent = 'Fit';
+            }
+          }
+          if (hasMoved) {
+            panX = startPanX + dx;
+            panY = startPanY + dy;
+            applyTransform();
+          }
+        });
+
+        vpEl.addEventListener('pointerup', e => {
+          if (!isDragging) return;
+          isDragging = false;
+          try { vpEl.releasePointerCapture(e.pointerId); } catch (_) {}
+          vpEl.style.cursor = 'grab';
+          if (hasMoved) {
+            suppressCardClick = true;
+            setTimeout(() => { suppressCardClick = false; }, 60);
+          }
+        });
+
+        vpEl.addEventListener('wheel', e => {
+          e.preventDefault();
+          const rect = vpEl.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+
+          const zoomFactor = e.deltaY < 0 ? 1.12 : (1 / 1.12);
+          const minZoom = isMainViewport ? Math.min(0.4, (vpEl.clientWidth / 1280) * 0.75) : 0.35;
+          const nextZoom = Math.min(2.6, Math.max(minZoom, zoom * zoomFactor));
+
+          panX = mouseX - (mouseX - panX) * (nextZoom / zoom);
+          panY = mouseY - (mouseY - panY) * (nextZoom / zoom);
+          zoom = nextZoom;
+
+          if (isMainViewport) {
+            state.orgZoomMode = 'manual';
+            const fitBtn = container.querySelector('#org-zoom-fit');
+            if (fitBtn) fitBtn.textContent = 'Fit';
+          }
+          applyTransform();
+        }, { passive: false });
+
+        vpEl.addEventListener('dblclick', () => {
+          resetToFit();
+        });
+
+        return {
+          resetToFit,
+          stepZoom(mult) {
+            const vpW = vpEl.clientWidth;
+            const vpH = vpEl.clientHeight;
+            const cx = vpW / 2;
+            const cy = vpH / 2;
+            const nextZoom = Math.min(2.6, Math.max(0.35, zoom * mult));
+            panX = cx - (cx - panX) * (nextZoom / zoom);
+            panY = cy - (cy - panY) * (nextZoom / zoom);
+            zoom = nextZoom;
+            if (isMainViewport) {
+              state.orgZoomMode = 'manual';
+              const fitBtn = container.querySelector('#org-zoom-fit');
+              if (fitBtn) fitBtn.textContent = 'Fit';
+            }
+            applyTransform();
+          }
+        };
       }
+
+      const mainController = setupInteractivePanZoom(viewportEl, stageEl, true);
 
       updateOrgKPIs();
       applyOrgFilters();
-      setTimeout(applyOrgScale, 0);
-      window.addEventListener('resize', applyOrgScale, { once: true });
+      setTimeout(() => mainController.resetToFit(), 0);
+      window.addEventListener('resize', () => {
+        if (state.orgZoomMode === 'fit') mainController.resetToFit();
+      }, { once: true });
 
       /* Page Switching */
       container.querySelectorAll('[data-org-page]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.orgPage = Number(btn.getAttribute('data-org-page'));
+          state.orgZoomMode = 'fit';
           render();
         });
       });
 
-      const prevBtn = container.querySelector('#org-prev-btn');
-      if (prevBtn && state.orgPage > 1) {
-        prevBtn.addEventListener('click', () => { state.orgPage--; render(); });
-      }
-      const nextBtn = container.querySelector('#org-next-btn');
-      if (nextBtn && state.orgPage < 6) {
-        nextBtn.addEventListener('click', () => { state.orgPage++; render(); });
-      }
-
-      /* Zoom Controls */
-      container.querySelector('#org-zoom-in').addEventListener('click', () => {
-        state.orgZoomMode = 'manual';
-        state.orgZoomLevel = Math.min(1.5, +(state.orgZoomLevel + 0.12).toFixed(2));
-        container.querySelector('#org-zoom-fit').textContent = 'Fit';
-        applyOrgScale();
-      });
-      container.querySelector('#org-zoom-out').addEventListener('click', () => {
-        state.orgZoomMode = 'manual';
-        state.orgZoomLevel = Math.max(0.45, +(state.orgZoomLevel - 0.12).toFixed(2));
-        container.querySelector('#org-zoom-fit').textContent = 'Fit';
-        applyOrgScale();
-      });
-      container.querySelector('#org-zoom-fit').addEventListener('click', () => {
-        state.orgZoomMode = 'fit';
-        container.querySelector('#org-zoom-fit').textContent = 'Fit ✓';
-        applyOrgScale();
-      });
+      /* Zoom & Fit Controls */
+      container.querySelector('#org-zoom-in').addEventListener('click', () => mainController.stepZoom(1.18));
+      container.querySelector('#org-zoom-out').addEventListener('click', () => mainController.stepZoom(1 / 1.18));
+      container.querySelector('#org-zoom-fit').addEventListener('click', () => mainController.resetToFit());
 
       /* Role Filter Pills */
       container.querySelectorAll('[data-role-filter]').forEach(pill => {
@@ -4277,9 +4381,11 @@
       });
 
       /* Click-to-Inspect Personnel Node */
-      if (canvasEl) {
-        canvasEl.querySelectorAll('.org-person-card').forEach(card => {
+      function bindInspectCards(rootEl) {
+        if (!rootEl) return;
+        rootEl.querySelectorAll('.org-person-card').forEach(card => {
           card.addEventListener('click', (e) => {
+            if (suppressCardClick) return;
             e.stopPropagation();
             const nameEl = card.querySelector('.name');
             const titleEl = card.querySelector('.title');
@@ -4308,62 +4414,49 @@
           });
         });
       }
+      bindInspectCards(canvasEl);
 
-      /* Drag-to-Pan in Viewport */
-      let isPanning = false, panStartX = 0, panStartY = 0, panScrollL = 0, panScrollT = 0;
-      viewportEl.addEventListener('mousedown', e => {
-        if (e.target.closest('.org-person-card')) return;
-        isPanning = true;
-        panStartX = e.pageX - viewportEl.offsetLeft;
-        panStartY = e.pageY - viewportEl.offsetTop;
-        panScrollL = viewportEl.scrollLeft;
-        panScrollT = viewportEl.scrollTop;
-      });
-      viewportEl.addEventListener('mouseleave', () => { isPanning = false; });
-      viewportEl.addEventListener('mouseup', () => { isPanning = false; });
-      viewportEl.addEventListener('mousemove', e => {
-        if (!isPanning) return;
-        e.preventDefault();
-        const x = e.pageX - viewportEl.offsetLeft;
-        const y = e.pageY - viewportEl.offsetTop;
-        viewportEl.scrollLeft = panScrollL - (x - panStartX);
-        viewportEl.scrollTop = panScrollT - (y - panStartY);
-      });
-
-      /* Export JPEG Helper */
-      const exportOrgCanvas = (targetCanvas, fileName) => {
+      /* Export JPEG Helper (Captures unclipped 1280x720 chart regardless of current pan/zoom) */
+      const exportOrgCanvas = (stageTarget, canvasTarget, fileName) => {
         if (typeof html2canvas === 'undefined') {
           showModal('Notice', 'Export library is still loading. Please try again in a moment.', 'alert', true);
           return;
         }
-        html2canvas(targetCanvas, { scale: 2, backgroundColor: '#f8fafc', width: 1280, height: 720 }).then(canvas => {
+        const prevTransform = stageTarget ? stageTarget.style.transform : '';
+        if (stageTarget) stageTarget.style.transform = 'none';
+        html2canvas(canvasTarget, { scale: 2, backgroundColor: '#f8fafc', width: 1280, height: 720 }).then(canvas => {
+          if (stageTarget) stageTarget.style.transform = prevTransform;
           const link = document.createElement('a');
           link.href = canvas.toDataURL('image/jpeg', 0.98);
           link.download = fileName;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+        }).catch(err => {
+          console.error(err);
+          if (stageTarget) stageTarget.style.transform = prevTransform;
         });
       };
 
       container.querySelector('#org-export-jpg').addEventListener('click', () => {
-        exportOrgCanvas(canvasEl, `BHS_Org_Chart_Page_${state.orgPage}.jpg`);
+        exportOrgCanvas(stageEl, canvasEl, `BHS_Org_Chart_${curPageObj.short.replace(/\s+/g, '_')}.jpg`);
       });
 
-      /* Full Screen View Overlay */
+      /* Full Screen View Overlay with Mouse Pan & Wheel Zoom */
       const fvOverlay = container.querySelector('#org-fullview-overlay');
       const fvStage = container.querySelector('#org-fv-stage');
       const fvWrap = container.querySelector('#org-fv-stage-wrap');
+      const fvController = setupInteractivePanZoom(fvWrap, fvStage, false);
 
       container.querySelector('#org-fullview-btn').addEventListener('click', () => {
         fvOverlay.style.display = 'flex';
         fvStage.innerHTML = getOrgPageMarkup(state.orgPage);
         const fvCanvas = fvStage.querySelector('.org-canvas');
-        if (fvCanvas) fvCanvas.id = 'org-canvas-fv';
-        const wScale = Math.min((fvWrap.clientWidth - 32) / 1280, (fvWrap.clientHeight - 32) / 720, 1.15);
-        fvStage.style.width = '1280px';
-        fvStage.style.height = '720px';
-        fvStage.style.transform = `scale(${Math.max(0.5, wScale)})`;
+        if (fvCanvas) {
+          fvCanvas.id = 'org-canvas-fv';
+          bindInspectCards(fvCanvas);
+        }
+        setTimeout(() => fvController.resetToFit(), 0);
       });
 
       container.querySelector('#org-fv-close-btn').addEventListener('click', () => {
@@ -4372,12 +4465,13 @@
 
       container.querySelector('#org-fv-export-btn').addEventListener('click', () => {
         const fvCanvas = fvStage.querySelector('.org-canvas');
-        if (fvCanvas) exportOrgCanvas(fvCanvas, `BHS_Org_Chart_Page_${state.orgPage}_FullView.jpg`);
+        if (fvCanvas) exportOrgCanvas(fvStage, fvCanvas, `BHS_Org_Chart_${curPageObj.short.replace(/\s+/g, '_')}_FullView.jpg`);
       });
 
       container.querySelectorAll('[data-fv-org-page]').forEach(btn => {
         btn.addEventListener('click', () => {
           state.orgPage = Number(btn.getAttribute('data-fv-org-page'));
+          state.orgZoomMode = 'fit';
           render();
           setTimeout(() => {
             const openBtn = document.getElementById('org-fullview-btn');
