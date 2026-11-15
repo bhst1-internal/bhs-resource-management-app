@@ -292,7 +292,7 @@
       width: 1280px;
       height: 720px;
       transform-origin: 0 0;
-      will-change: transform;
+      /* Removed will-change: transform; to keep vector text razor sharp when zooming */
     }
 
     /* Org Chart Canvas (1280 x 720 exact proportional design) */
@@ -310,6 +310,9 @@
       padding-top: 28px;
       font-family: 'Inter', sans-serif;
       position: relative;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .org-canvas .tree-wrapper {
       display: flex;
@@ -472,8 +475,8 @@
     }
     .s6-badge-lg p.name {
       margin: 0;
-      font-size: 8.5px;
-      font-weight: 700;
+      font-size: 9.5px;
+      font-weight: 800;
       color: #ffffff;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -481,7 +484,7 @@
     }
     .s6-badge-lg p.title {
       margin: 1px 0 0 0;
-      font-size: 7px;
+      font-size: 7.5px;
       color: rgba(255,255,255,0.95);
       text-transform: uppercase;
       line-height: 1.15;
@@ -514,15 +517,15 @@
     }
     .s6-badge-md p.name {
       margin: 0;
-      font-size: 7.5px;
-      font-weight: 700;
+      font-size: 8px;
+      font-weight: 800;
       color: #ffffff;
       text-transform: uppercase;
       line-height: 1.1;
     }
     .s6-badge-md p.title {
       margin: 1px 0 0 0;
-      font-size: 6px;
+      font-size: 6.5px;
       color: rgba(255,255,255,0.95);
       text-transform: uppercase;
       line-height: 1.1;
@@ -537,8 +540,8 @@
     }
     .s6-pill-sm p.name {
       margin: 0;
-      font-size: 6.5px;
-      font-weight: 700;
+      font-size: 7.5px;
+      font-weight: 800;
       color: #ffffff;
       text-transform: uppercase;
       line-height: 1.15;
@@ -616,15 +619,15 @@
     }
     .s6-exec-badge p.name {
       margin: 0;
-      font-size: 7.5px;
-      font-weight: 700;
+      font-size: 8px;
+      font-weight: 800;
       color: #ffffff;
       text-transform: uppercase;
       line-height: 1.15;
     }
     .s6-exec-badge p.title {
       margin: 1px 0 0 0;
-      font-size: 6px;
+      font-size: 6.5px;
       color: rgba(255,255,255,0.95);
       text-transform: uppercase;
       line-height: 1.1;
@@ -668,8 +671,8 @@
     }
     .s6-mini-pill p.name {
       margin: 0;
-      font-size: 5.3px;
-      font-weight: 700;
+      font-size: 6px;
+      font-weight: 800;
       color: #ffffff;
       text-transform: uppercase;
       line-height: 1.12;
@@ -679,7 +682,7 @@
     }
     .s6-mini-pill p.title {
       margin: 0;
-      font-size: 4.8px;
+      font-size: 5px;
       color: rgba(255,255,255,0.92);
       text-transform: uppercase;
       line-height: 1.05;
@@ -4129,7 +4132,7 @@
               </div>
             </div>
             <div id="org-fv-stage-wrap" style="flex:1; background:#f8fafc; border:1px solid var(--line); border-radius:10px; overflow:hidden; position:relative; cursor:grab; touch-action:none; user-select:none;">
-              <div id="org-fv-stage" style="position:absolute; top:0; left:0; width:1280px; height:720px; transform-origin:0 0; will-change:transform;"></div>
+              <div id="org-fv-stage" style="position:absolute; top:0; left:0; width:1280px; height:720px; transform-origin:0 0;"></div>
             </div>
           </div>
         </div>
@@ -4250,7 +4253,6 @@
           startClientY = e.clientY;
           startPanX = panX;
           startPanY = panY;
-          vpEl.setPointerCapture(e.pointerId);
           vpEl.style.cursor = 'grabbing';
         });
 
@@ -4259,7 +4261,10 @@
           const dx = e.clientX - startClientX;
           const dy = e.clientY - startClientY;
           if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-            hasMoved = true;
+            if (!hasMoved) {
+              hasMoved = true;
+              try { vpEl.setPointerCapture(e.pointerId); } catch (_) {}
+            }
             if (isMainViewport) {
               state.orgZoomMode = 'manual';
               const fitBtn = container.querySelector('#org-zoom-fit');
@@ -4381,40 +4386,38 @@
       });
 
       /* Click-to-Inspect Personnel Node */
-      function bindInspectCards(rootEl) {
-        if (!rootEl) return;
-        rootEl.querySelectorAll('.org-person-card').forEach(card => {
-          card.addEventListener('click', (e) => {
-            if (suppressCardClick) return;
-            e.stopPropagation();
-            const nameEl = card.querySelector('.name');
-            const titleEl = card.querySelector('.title');
-            const rawName = nameEl ? nameEl.innerText.replace(/\n/g, ' ') : 'Position';
-            const rawTitle = titleEl ? titleEl.innerText.replace(/\n/g, ' — ') : '';
-            const dept = card.getAttribute('data-dept') || curPageObj.title;
-            const role = card.getAttribute('data-role') || 'staff';
-            const roleLabels = {
-              manager: 'Manager (Terminal 1)',
-              srexec: 'Senior Executive Engineer',
-              exec: 'Executive Engineer',
-              techoff: 'Technical Officer / Chargeman',
-              specialist: 'Specialist',
-              technician: 'Technician',
-              vacant: 'Vacant Position (Open Slot)'
-            };
-            const statusTxt = role === 'vacant' ? 'VACANT — Open Establishment Slot' : 'ACTIVE — Assigned Personnel';
-            const detailBody =
-              `Personnel: ${rawName}\n` +
-              (rawTitle ? `Designation: ${rawTitle}\n` : '') +
-              `Position Level: ${roleLabels[role] || 'Operations Staff'}\n` +
-              `Section / Shift: ${dept}\n` +
-              `Chart View: ${curPageObj.short}\n` +
-              `Status: ${statusTxt}`;
-            showModal('Personnel & Position Details', detailBody, 'alert', role === 'vacant');
-          });
-        });
-      }
-      bindInspectCards(canvasEl);
+      const handleCardClick = (e) => {
+        if (suppressCardClick) return;
+        const card = e.target.closest('.org-person-card');
+        if (!card) return;
+        e.stopPropagation();
+        const nameEl = card.querySelector('.name');
+        const titleEl = card.querySelector('.title');
+        const rawName = nameEl ? nameEl.innerText.replace(/\n/g, ' ') : 'Position';
+        const rawTitle = titleEl ? titleEl.innerText.replace(/\n/g, ' — ') : '';
+        const dept = card.getAttribute('data-dept') || curPageObj.title;
+        const role = card.getAttribute('data-role') || 'staff';
+        const roleLabels = {
+          manager: 'Manager (Terminal 1)',
+          srexec: 'Senior Executive Engineer',
+          exec: 'Executive Engineer',
+          techoff: 'Technical Officer / Chargeman',
+          specialist: 'Specialist',
+          technician: 'Technician',
+          vacant: 'Vacant Position (Open Slot)'
+        };
+        const statusTxt = role === 'vacant' ? 'VACANT — Open Establishment Slot' : 'ACTIVE — Assigned Personnel';
+        const detailBody =
+          `Personnel: ${rawName}\n` +
+          (rawTitle ? `Designation: ${rawTitle}\n` : '') +
+          `Position Level: ${roleLabels[role] || 'Operations Staff'}\n` +
+          `Section / Shift: ${dept}\n` +
+          `Chart View: ${curPageObj.short}\n` +
+          `Status: ${statusTxt}`;
+        showModal('Personnel & Position Details', detailBody, 'alert', role === 'vacant');
+      };
+
+      viewportEl.addEventListener('click', handleCardClick);
 
       /* Export JPEG Helper (Captures unclipped 1280x720 chart regardless of current pan/zoom) */
       const exportOrgCanvas = (stageTarget, canvasTarget, fileName) => {
@@ -4447,6 +4450,8 @@
       const fvStage = container.querySelector('#org-fv-stage');
       const fvWrap = container.querySelector('#org-fv-stage-wrap');
       const fvController = setupInteractivePanZoom(fvWrap, fvStage, false);
+      
+      if (fvWrap) fvWrap.addEventListener('click', handleCardClick);
 
       container.querySelector('#org-fullview-btn').addEventListener('click', () => {
         fvOverlay.style.display = 'flex';
@@ -4454,7 +4459,6 @@
         const fvCanvas = fvStage.querySelector('.org-canvas');
         if (fvCanvas) {
           fvCanvas.id = 'org-canvas-fv';
-          bindInspectCards(fvCanvas);
         }
         setTimeout(() => fvController.resetToFit(), 0);
       });
