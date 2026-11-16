@@ -290,7 +290,9 @@
       top: 0;
       left: 0;
       width: 1280px;
-      height: 720px;
+      min-height: 720px;
+      height: max-content;
+      padding-bottom: 40px;
       transform-origin: 0 0;
       /* Removed will-change: transform; to keep vector text razor sharp when zooming */
     }
@@ -298,7 +300,9 @@
     /* Org Chart Canvas (1280 x 720 exact proportional design) */
     .org-canvas {
       width: 1280px;
-      height: 720px;
+      min-height: 720px;
+      height: max-content;
+      padding-bottom: 60px;
       margin: 0 auto;
       overflow: hidden;
       box-sizing: border-box;
@@ -787,30 +791,34 @@
         if (!overlay) {
           overlay = document.createElement('div');
           overlay.id = 'acm-modal-overlay';
-          overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="text" id="acm-modal-input" placeholder="" autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
-        }
-        if (overlay.parentNode !== ROOT) ROOT.appendChild(overlay);
-        const titleEl = overlay.querySelector('#acm-modal-title');
-        const msgEl = overlay.querySelector('#acm-modal-msg');
-        const inputEl = overlay.querySelector('#acm-modal-input');
-        const actionsEl = overlay.querySelector('#acm-modal-actions');
-        titleEl.textContent = title;
-        msgEl.textContent = msg;
+        overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="text" id="acm-modal-input" placeholder="" autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
+      }
+      if (overlay.parentNode !== ROOT) ROOT.appendChild(overlay);
+      const titleEl = overlay.querySelector('#acm-modal-title');
+      const msgEl = overlay.querySelector('#acm-modal-msg');
+      const inputEl = overlay.querySelector('#acm-modal-input');
+      const actionsEl = overlay.querySelector('#acm-modal-actions');
+      titleEl.textContent = title;
+      msgEl.textContent = msg;
 
-        if (type === 'prompt') {
-          inputEl.type = 'password';
-          inputEl.placeholder = 'Enter password...';
-          inputEl.style.display = 'block';
-        } else if (type === 'prompt-date') {
-          inputEl.type = 'date';
-          inputEl.placeholder = '';
-          inputEl.style.display = 'block';
-        } else {
-          inputEl.style.display = 'none';
-        }
+      if (type === 'prompt') {
+        inputEl.type = 'password';
+        inputEl.placeholder = 'Enter password...';
+        inputEl.style.display = 'block';
+      } else if (type === 'prompt-text') {
+        inputEl.type = 'text';
+        inputEl.placeholder = 'Enter text...';
+        inputEl.style.display = 'block';
+      } else if (type === 'prompt-date') {
+        inputEl.type = 'date';
+        inputEl.placeholder = '';
+        inputEl.style.display = 'block';
+      } else {
+        inputEl.style.display = 'none';
+      }
 
-        inputEl.value = '';
-        actionsEl.innerHTML = '';
+      inputEl.value = '';
+      actionsEl.innerHTML = '';
         function close() { overlay.classList.remove('active'); }
         const createBtn = (cls, text, cb) => {
           const b = document.createElement('button');
@@ -825,29 +833,29 @@
         } else if (type === 'confirm') {
           actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
           actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Delete', () => resolve(true)));
-        } else if (type === 'confirm-edit') {
-          actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
-          actionsEl.appendChild(createBtn('btn btn-primary', 'Edit', () => resolve(true)));
-        } else if (type === 'prompt' || type === 'prompt-date') {
-          actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
-          const handleSub = () => { close(); resolve(inputEl.value); };
-          const ob = createBtn('btn btn-primary', 'Confirm', handleSub);
-          actionsEl.appendChild(ob);
-          inputEl.onkeydown = e => { if (e.key === 'Enter') handleSub(); };
-        } else if (type === 'unsaved') {
+      } else if (type === 'confirm-edit') {
+        actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
+        actionsEl.appendChild(createBtn('btn btn-primary', 'Edit', () => resolve(true)));
+      } else if (type === 'prompt' || type === 'prompt-date' || type === 'prompt-text') {
+        actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
+        const handleSub = () => { close(); resolve(inputEl.value); };
+        const ob = createBtn('btn btn-primary', 'Confirm', handleSub);
+        actionsEl.appendChild(ob);
+        inputEl.onkeydown = e => { if (e.key === 'Enter') handleSub(); };
+      } else if (type === 'unsaved') {
           actionsEl.appendChild(createBtn('btn btn-primary', 'Cancel & Keep Editing', () => resolve(false)));
           actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Discard Data', () => resolve(true)));
         }
 
         void overlay.offsetWidth;
-        overlay.classList.add('active');
-        if (type === 'prompt' || type === 'prompt-date') {
-          setTimeout(() => {
-            if (type === 'prompt-date' && typeof extraArg === 'string') inputEl.value = extraArg;
-            inputEl.focus();
-          }, 50);
-        }
-      });
+      overlay.classList.add('active');
+      if (type === 'prompt' || type === 'prompt-date' || type === 'prompt-text') {
+        setTimeout(() => {
+          if (type === 'prompt-date' && typeof extraArg === 'string') inputEl.value = extraArg;
+          inputEl.focus();
+        }, 50);
+      }
+    });
     }
 
     /* =========================================================================
@@ -3194,6 +3202,33 @@
       if (!state.orgData) state.orgData = getDefaultOrgData();
       const d = state.orgData;
       
+      const customBranchesHtml = (d.customBranches && d.customBranches.length > 0) ? `
+        <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-top:40px; border-top:2px dashed #cbd5e1; padding-top:24px;">
+          <div style="background:#1e293b; color:#fff; padding:6px 16px; border-radius:6px; font-size:12px; font-weight:bold; letter-spacing:1px; margin-bottom:24px;">ADDITIONAL SUB-SECTIONS</div>
+          <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:24px; width:100%;">
+            ${d.customBranches.map((cb, idx) => `
+              <div style="display:flex; flex-direction:column; align-items:center; width:220px;">
+                ${pageId === 6 
+                  ? renderS6Exec(`customBranches.${idx}.lead`, 'fa-users', cb.title) 
+                  : renderNode(`customBranches.${idx}.lead`, 'fa-users', cb.title)
+                }
+                <div class="${pageId === 6 ? 's6-stem' : 'stem'}" style="height: 10px;"></div>
+                <div class="${pageId === 6 ? 's6-shift-card' : ''}" style="${pageId !== 6 ? 'background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; width:100%; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;' : 'width:100%;'}">
+                  <div class="${pageId === 6 ? 's6-disc-hdr' : ''}" style="${pageId !== 6 ? 'font-size:11px; font-weight:800; color:#0f172a; margin-bottom:12px; text-transform:uppercase; text-align:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; width:100%;' : ''}">${cb.title}</div>
+                  <div style="display:flex; flex-direction:column; gap:${pageId === 6 ? '2px' : '6px'}; width:100%; align-items:center;">
+                    ${cb.members.map((m, mIdx) => pageId === 6 
+                      ? renderS6Pill(`customBranches.${idx}.members.${mIdx}`, m, cb.title)
+                      : renderPill(`customBranches.${idx}.members.${mIdx}`, m, cb.title, false, 'width:100%;')
+                    ).join('')}
+                    ${renderAddBtn(`customBranches.${idx}.members`, pageId === 6)}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+      
       if (pageId === 1) {
         return `
         <div class="org-canvas" id="org-canvas-active">
@@ -3316,6 +3351,8 @@
                 </div>
               </div>
             </div>
+            
+            ${customBranchesHtml}
           </div>
         </div>`;
       }
@@ -3378,19 +3415,20 @@
               <!-- SCREENING SYSTEM -->
               <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center; padding: 0 6px;">
                 <div class="name-badge badge-simple" style="background: #1e293b; margin-top: 0; margin-bottom: 6px; padding: 4px 16px;">
-                  <p class="name" style="font-size: 10px; letter-spacing: 1px;">SCREENING SYSTEM</p>
-                </div>
-                ${renderNode(`shifts.${shiftKey}.scrTo`, 'fa-shield-halved', `${cfg.title} — Screening`)}
-                <div class="stem" style="height: 12px;"></div>
-                <div style="display: flex; flex-direction: column; gap: 6px; width: 88%; align-items: center;">
-                  <p style="font-size: 14px; font-weight: 700; color: #0ea5e9; text-align: center; margin-bottom: 2px;">TECHNICIANS</p>
-                  ${cfg.scrTechs.map((t, idx) => renderPill(`shifts.${shiftKey}.scrTechs.${idx}`, t, `${cfg.title} — Screening`, false, 'padding: 6px 10px; width: 125px; margin: 0;')).join('')}
-                  ${renderAddBtn(`shifts.${shiftKey}.scrTechs`)}
+                  <div class="s6-mini-pill color-technician"><p class="name" contenteditable="true">LUQMAN HAKIM</p></div>
+                  <div class="s6-mini-pill color-technician"><p class="name" contenteditable="true">NURUL IMAN AL IZWAN</p></div>
                 </div>
               </div>
             </div>
           </div>
-        </div>`;
+
+        </div>
+        
+        ${customBranchesHtml}
+      </div>
+
+    </div>
+  </div>`;
       }
 
       /* Page 6: Complete Integrated Master Chart */
@@ -3598,12 +3636,13 @@
           overlay.id = 'org-edit-overlay';
           overlay.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,.7); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(2px);';
           overlay.innerHTML = `
-            <div style="background:#fff; border-radius:12px; padding:20px 24px; width:90%; max-width:380px; box-shadow:0 12px 32px rgba(0,0,0,.2);">
-              <h3 style="margin:0 0 16px 0; color:var(--ink); font-weight:800;">Edit Personnel</h3>
-              <label class="f">Name<input type="text" id="org-ed-name"/></label>
-              <label class="f" style="margin-top:10px;">Designation / Title<textarea id="org-ed-title" style="min-height:50px;"></textarea></label>
-              <label class="f" style="margin-top:10px;">Position Level
-                <select id="org-ed-role">
+            <div id="acm-modal-box" style="transform:translateY(0);">
+              <div id="acm-modal-title">Edit Personnel</div>
+              <div id="acm-modal-msg" style="margin-bottom:12px;">Update details or remove this personnel.</div>
+              <label class="f">Name<input type="text" id="org-ed-name" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; font-size:.875rem; background:var(--input-bg);"/></label>
+              <label class="f">Designation / Title<textarea id="org-ed-title" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; font-size:.875rem; background:var(--input-bg); min-height:50px;"></textarea></label>
+              <label class="f">Position Level
+                <select id="org-ed-role" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:18px; font-size:.875rem; background:var(--input-bg);">
                   <option value="manager">Manager</option>
                   <option value="srexec">Senior Executive</option>
                   <option value="exec">Executive Engineer</option>
@@ -3613,9 +3652,9 @@
                   <option value="vacant">Vacant</option>
                 </select>
               </label>
-              <div style="display:flex; justify-content:space-between; margin-top:20px;">
+              <div id="acm-modal-actions" style="justify-content:space-between;">
                 <button class="btn btn-danger" id="org-ed-del">Remove</button>
-                <div style="display:flex; gap:8px; margin-left:auto;">
+                <div style="display:flex; gap:8px;">
                   <button class="btn btn-ghost" id="org-ed-cancel">Cancel</button>
                   <button class="btn btn-primary" id="org-ed-save" style="background:var(--ok);">Save</button>
                 </div>
@@ -3687,7 +3726,11 @@
               `).join('')}
             </div>
 
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;gap:6px;align-items:center;">
+              ${state.orgEditMode ? `
+                <button type="button" class="btn btn-ghost" id="org-add-branch-btn" style="padding:4px 8px;font-size:.65rem;border:1px dashed var(--accent);color:var(--accent);"><i class="fa-solid fa-plus"></i> Add Sub-Section</button>
+                <button type="button" class="btn btn-ghost" id="org-undo-btn" style="padding:4px 8px;font-size:.65rem;border:1px solid var(--line);background:var(--paper);color:var(--text-sec);"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+              ` : ''}
               <button type="button" class="export-chart-btn" id="org-manage-btn" title="Edit Organization Chart" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid ${state.orgEditMode ? 'var(--warn)' : 'var(--line)'};font-size:.65rem;font-weight:700;color:${state.orgEditMode ? 'var(--warn)' : 'var(--text-sec)'};cursor:pointer;background:var(--bg)">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                 ${state.orgEditMode ? 'Exit Edit Mode' : 'Manage Personnel'}
@@ -3857,7 +3900,7 @@
           const vpW = Math.max(320, vpEl.clientWidth);
           if (isMainViewport) {
             const fitScale = vpW / 1280;
-            const vpH = Math.round(720 * fitScale);
+            const vpH = Math.round(stEl.scrollHeight * fitScale);
             vpEl.style.height = vpH + 'px';
             zoom = fitScale;
             panX = 0;
@@ -3992,17 +4035,47 @@
       container.querySelector('#org-manage-btn').addEventListener('click', async () => {
         if (state.orgEditMode) {
           state.orgEditMode = false;
+          state.orgDataSnapshot = null;
           render();
           return;
         }
-        const pass = await showModal('Admin Authentication', 'Enter password for Zulkiple to manage org chart:', 'prompt');
+        const pass = await showModal('Admin Authentication', 'Enter admin password to manage the organization chart:', 'prompt');
         if (pass === '133513') {
+          state.orgDataSnapshot = JSON.stringify(state.orgData);
           state.orgEditMode = true;
           render();
         } else if (pass !== null) {
           await showModal('Error', 'Incorrect password.', 'alert', true);
         }
       });
+
+      const undoBtn = container.querySelector('#org-undo-btn');
+      if (undoBtn) {
+        undoBtn.addEventListener('click', () => {
+          if (state.orgDataSnapshot) {
+            state.orgData = JSON.parse(state.orgDataSnapshot);
+            saveOrgDataToCloud();
+            render();
+          }
+        });
+      }
+
+      const addBranchBtn = container.querySelector('#org-add-branch-btn');
+      if (addBranchBtn) {
+        addBranchBtn.addEventListener('click', async () => {
+          const branchName = await showModal('New Sub-Section', 'Enter the name of the new sub-section:', 'prompt-text', 'New Department');
+          if (branchName) {
+            if (!state.orgData.customBranches) state.orgData.customBranches = [];
+            state.orgData.customBranches.push({
+              title: branchName,
+              lead: { name: 'VACANT', title: 'SECTION LEAD', role: 'vacant' },
+              members: []
+            });
+            saveOrgDataToCloud();
+            render();
+          }
+        });
+      }
 
       /* Role Filter Pills */
       container.querySelectorAll('[data-role-filter]').forEach(pill => {
