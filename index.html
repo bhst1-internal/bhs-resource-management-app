@@ -994,7 +994,6 @@
       if(!state._tsCache) state._tsCache = {};
       state._tsCache[cacheKey] = res;
       return res;
-      return getTs(dateStr) || getOldTs(oldDd, oldMm, oldYy);
     }
 
     function getStatus(r) {
@@ -1217,6 +1216,7 @@
           state.activeId = String(btn.getAttribute('data-id'));
           state.tab = 'Record Input';
           render();
+        });
       });
 
       if (timelineChart) {
@@ -2688,6 +2688,7 @@
         row.addEventListener('click', () => {
           state.activeId = String(row.getAttribute('data-id'));
           render();
+        });
       });
 
       if (r) {
@@ -2913,6 +2914,7 @@
         row.addEventListener('click', () => {
           state.activeId = String(row.getAttribute('data-id'));
           render();
+        });
       });
 
       if (r) {
@@ -4369,6 +4371,7 @@
           state.orgPage = Number(btn.getAttribute('data-org-page'));
           state.orgZoomMode = 'fit';
           render();
+        });
       });
 
       /* Zoom & Fit Controls */
