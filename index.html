@@ -1204,7 +1204,19 @@
     }
 
     function updateDashboardUI() {
-      // Additional dashboard updates are reserved for future enhancements.
+      const filtered = getFilteredDashboardRecords();
+      const k = computeKPIs(filtered);
+      const totalCompletionRate = k.total === 0 ? null : Math.round((k.completedCount / k.total) * 100);
+      const kpiCards = [
+        { l: 'Total Contract Records', v: k.openCount, c: 'var(--crit)', s: `${k.total} total filtered`, p: k.openCount > 0 ? `<span class="kpi-pill pill-crit">Needs attention</span>` : `<span class="kpi-pill pill-ok">All clear</span>` },
+        { l: 'Critical / Urgent Pending', v: k.criticalPending, c: 'var(--warn)', s: '1 & 3 Months target, open', p: k.criticalPending > 0 ? `<span class="kpi-pill pill-warn">Prioritise</span>` : `<span class="kpi-pill pill-ok">None pending</span>` },
+        { l: 'Top Category', v: k.topCat || '—', c: 'var(--accent-2)', s: k.topCat ? `${k.topCatCount} occurrence${k.topCatCount === 1 ? '' : 's'} logged` : 'No category data yet', p: '' },
+        { l: 'Total Completion', v: totalCompletionRate === null ? '—' : (totalCompletionRate + '%'), c: 'var(--accent)', s: `${k.completedCount} of ${k.total} job${k.total === 1 ? '' : 's'} done`, p: totalCompletionRate === 100 ? `<span class="kpi-pill pill-ok">Perfect</span>` : '' },
+        { l: 'On-Time Completion', v: k.onTimeRate === null ? '—' : (k.onTimeRate + '%'), c: 'var(--ok)', s: k.onTimeRate === null ? 'No rated completions yet' : 'vs. exact SLA target', p: k.onTimeRate !== null ? (k.onTimeRate >= 80 ? `<span class="kpi-pill pill-ok">On target</span>` : `<span class="kpi-pill pill-warn">Below target</span>`) : '', tooltip: `Avg. Resolution Time: ${k.avgRes === null ? '—' : (k.avgRes.toFixed(1) + ' days')} (across ${k.completedCount} completed jobs)` }
+      ];
+
+      const gridEl = document.getElementById('dash-kpi-grid');
+      if (gridEl) gridEl.innerHTML = kpiCards.map(c => `<div class="kpi-card" ${c.tooltip ? `data-tooltip="${c.tooltip}"` : ''}><div class="bar" style="background:${c.c}"></div><div class="kpi-label">${c.l}</div><div class="kpi-value">${c.v}</div><div class="kpi-sub">${c.s}</div>${c.p}</div>`).join('');
     }
 
     function setupDropdownFilters(wrapperId, defaultText) {
@@ -1508,7 +1520,7 @@
           </label>
       </div></div>
 
-      <div class="panel" style="min-height:300px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--line-dark); background:transparent;"><div class="empty-state" style="font-size:1.1rem; color:var(--text-sec); font-weight:600">Additional Dashboard sections are reserved for future enhancements.</div></div>`;
+      <div class="kpi-grid" id="dash-kpi-grid"></div>`;
 
       setupDropdownFilters('dd-class-wrapper', 'All');
       setupDropdownFilters('dd-crit-wrapper', 'All');
@@ -1532,6 +1544,8 @@
         });
         updateDashboardUI();
       });
+
+      updateDashboardUI();
     }
 
     function updateCMUI() {
@@ -2161,19 +2175,14 @@
                 </div>
              </div>
           </div>
-        </div>
-      `;
+        </div>`;
 
-      const listSec = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px; margin-top:20px;">
-        <h3 style="margin:0;font-size:.875rem;font-weight:800">Contract Lifecycle Management (CLM)</h3>
-      </div>
-      <div class="sec" style="margin-top:0">
-          <div class="sec-title" id="cm-contract-list-toggle" style="margin:0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-             <span>Contract List</span>
-             <span id="cm-contract-list-icon" style="font-size:0.8rem; color:var(--text-sec);">▼</span>
+      const listSec = `<div class="sec" style="margin-top:20px">
+          <div class="sec-title" id="cm-toggle-contract-list" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+            <span>Contract List</span>
+            <span id="cm-cl-icon" style="font-size:10px;">▼</span>
           </div>
-          <div class="table-panel" id="cm-contract-list-table" style="padding:0;border:none;display:none;margin-top:10px;">
+          <div class="table-panel" id="cm-contract-list-wrapper" style="padding:0;border:none;display:none;margin-top:10px;">
               ${contracts.length === 0 ? `<div class="empty-state">No records found. Create one in Record Input.</div>` :
               `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Classification</th><th>Criteria</th><th>Vendor</th><th>Date Issued</th><th>CPCD</th><th>Monitoring</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
           </div>
@@ -2299,26 +2308,32 @@
         </div>`;
       }
 
-      container.innerHTML = `<div style="background:transparent;">${cmAnalyticsHtml}</div><div class="form-shell">${listSec}${clmSec}</div>`;
-
-      const contractListToggle = container.querySelector('#cm-contract-list-toggle');
-      if (contractListToggle) {
-        contractListToggle.addEventListener('click', () => {
-          const table = container.querySelector('#cm-contract-list-table');
-          const icon = container.querySelector('#cm-contract-list-icon');
-          if (table.style.display === 'none') {
-            table.style.display = 'block';
-            icon.textContent = '▲';
-          } else {
-            table.style.display = 'none';
-            icon.textContent = '▼';
-          }
-        });
-      }
+      container.innerHTML = `<div style="background:transparent;">${cmAnalyticsHtml}</div>
+      <div class="form-shell">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h3 style="margin:0;font-size:.875rem;font-weight:800">Contract Lifecycle Management (CLM)</h3>
+          </div>
+          ${listSec}${clmSec}
+      </div>`;
 
       container.querySelectorAll('.cm-leg-chk').forEach(chk => {
         chk.addEventListener('change', (e) => toggleCMLegend(parseInt(e.target.value), e.target.checked));
       });
+
+      const clToggleBtn = container.querySelector('#cm-toggle-contract-list');
+      if (clToggleBtn) {
+        clToggleBtn.addEventListener('click', () => {
+          const wrapper = container.querySelector('#cm-contract-list-wrapper');
+          const icon = container.querySelector('#cm-cl-icon');
+          if (wrapper.style.display === 'none') {
+            wrapper.style.display = 'block';
+            icon.textContent = '▲';
+          } else {
+            wrapper.style.display = 'none';
+            icon.textContent = '▼';
+          }
+        });
+      }
 
       const toggleCMDates = () => {
         state.showTimelineDates = !state.showTimelineDates;
