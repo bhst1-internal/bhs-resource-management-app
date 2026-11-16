@@ -1204,179 +1204,7 @@
     }
 
     function updateDashboardUI() {
-      const filtered = getFilteredDashboardRecords();
-      const k = computeKPIs(filtered);
-      const totalCompletionRate = k.total === 0 ? null : Math.round((k.completedCount / k.total) * 100);
-      const kpiCards = [
-        { l: 'Total Contract Records', v: k.openCount, c: 'var(--crit)', s: `${k.total} total filtered`, p: k.openCount > 0 ? `<span class="kpi-pill pill-crit">Needs attention</span>` : `<span class="kpi-pill pill-ok">All clear</span>` },
-        { l: 'Critical / Urgent Pending', v: k.criticalPending, c: 'var(--warn)', s: '1 & 3 Months target, open', p: k.criticalPending > 0 ? `<span class="kpi-pill pill-warn">Prioritise</span>` : `<span class="kpi-pill pill-ok">None pending</span>` },
-        { l: 'Top Category', v: k.topCat || '—', c: 'var(--accent-2)', s: k.topCat ? `${k.topCatCount} occurrence${k.topCatCount === 1 ? '' : 's'} logged` : 'No category data yet', p: '' },
-        { l: 'Total Completion', v: totalCompletionRate === null ? '—' : (totalCompletionRate + '%'), c: 'var(--accent)', s: `${k.completedCount} of ${k.total} job${k.total === 1 ? '' : 's'} done`, p: totalCompletionRate === 100 ? `<span class="kpi-pill pill-ok">Perfect</span>` : '' },
-        { l: 'On-Time Completion', v: k.onTimeRate === null ? '—' : (k.onTimeRate + '%'), c: 'var(--ok)', s: k.onTimeRate === null ? 'No rated completions yet' : 'vs. exact SLA target', p: k.onTimeRate !== null ? (k.onTimeRate >= 80 ? `<span class="kpi-pill pill-ok">On target</span>` : `<span class="kpi-pill pill-warn">Below target</span>`) : '', tooltip: `Avg. Resolution Time: ${k.avgRes === null ? '—' : (k.avgRes.toFixed(1) + ' days')} (across ${k.completedCount} completed jobs)` }
-      ];
-
-      const gridEl = document.getElementById('dash-kpi-grid');
-      if (gridEl) gridEl.innerHTML = kpiCards.map(c => `<div class="kpi-card" ${c.tooltip ? `data-tooltip="${c.tooltip}"` : ''}><div class="bar" style="background:${c.c}"></div><div class="kpi-label">${c.l}</div><div class="kpi-value">${c.v}</div><div class="kpi-sub">${c.s}</div>${c.p}</div>`).join('');
-
-      const rows = filtered.slice().sort((a, b) => b.createdAt - a.createdAt).map(r => {
-        const st = getStatus(r);
-        const vendorDisp = r.vendorNameBase === 'Other' ? (r.vendorNameOther || 'Other') : (r.vendorNameBase || '—');
-        return `<tr><td><button class="link-btn mono-font" data-act="open" data-id="${r.createdAt}" style="text-decoration:underline;padding:0;text-align:left;font-weight:700">${r.reportNo || '—'}</button></td><td>${r.title || '<span style="color:var(--line-dark)">Untitled</span>'}</td><td>${r.issuedGroup || '—'}</td><td>${vendorDisp}</td><td class="mono-font">${fmtDate(r)}</td><td class="mono-font">${r.ecd ? fmtDate({ happeningDate: r.ecd }) : '—'}</td><td class="mono-font">${r.endDate ? fmtDate({ happeningDate: r.endDate }) : '—'}</td><td>${r.contractDuration || '—'}</td><td><span class="status-chip ${st === 'done' ? 'chip-done' : st === 'progress' ? 'chip-progress' : 'chip-open'}">${st === 'done' ? 'Completed' : st === 'progress' ? 'In progress' : 'Open'}</span></td></tr>`;
-      }).join('');
-
-      const tContainer = document.getElementById('dash-table-container');
-      if (tContainer) tContainer.innerHTML = filtered.length === 0 ? `<div class="empty-state">No record found matching filters.</div>` : `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Criteria</th><th>Vendor</th><th>Date Issued</th><th>CPCD</th><th>End Date</th><th>Contract Duration</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
-
-      document.querySelectorAll('[data-act="open"]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.activeId = String(btn.getAttribute('data-id'));
-          state.tab = 'Record Input';
-          render();
-        });
-      });
-
-      if (timelineChart) {
-        const nowTs = new Date().setHours(23, 59, 59, 999);
-        const timelineFiltered = filtered.slice().sort((a, b) => b.createdAt - a.createdAt);
-        const tlLabels = [], dsDone = [], dsProg = [], dsOpen = [], masterMilestones = [];
-        let globalMinT = nowTs, globalMaxT = nowTs;
-
-        const doneBg = 'rgba(5, 150, 105, 0.45)', doneBc = 'rgba(5, 150, 105, 1)';
-        const progBg = 'rgba(217, 119, 6, 0.45)', progBc = 'rgba(217, 119, 6, 1)';
-
-        timelineFiltered.forEach(r => {
-          let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy);
-          if (t0 && !isNaN(t0) && t0 < globalMinT) globalMinT = t0;
-        });
-
-        timelineFiltered.forEach(r => {
-          let t0 = getExactTs(r.happeningDate, r.dd, r.mm, r.yy) || parseInt(r.createdAt, 10);
-          if (isNaN(t0)) t0 = nowTs;
-          let statusLogic = getStatus(r);
-          let endOfAction = statusLogic === 'done' ? (getExactTs(r.updatedAt || r.createdAt) || nowTs) : nowTs;
-
-          let totalX = [t0, endOfAction];
-          let targetT = t0 + (URGENCY_MS[r.urgency] || 0);
-
-          let labelStr = r.reportNo || 'Draft';
-          while (tlLabels.includes(labelStr)) labelStr += '\u200B';
-          tlLabels.push(labelStr);
-
-          const dsTarget = statusLogic === 'done' ? dsDone : (statusLogic === 'progress' ? dsProg : dsOpen);
-          const activeBg = statusLogic === 'done' ? doneBg : (statusLogic === 'progress' ? progBg : 'transparent');
-          const activeBc = statusLogic === 'done' ? doneBc : (statusLogic === 'progress' ? progBc : 'transparent');
-
-          const barData = { x: [t0, endOfAction], y: labelStr, _r: r, _totalX: totalX, _bg: activeBg, _bc: activeBc };
-          if (statusLogic === 'open') {
-            dsTarget.push({ ...barData, _bg: 'transparent', _bc: 'transparent', _isOpenLine: true, _t0: t0, _t1: endOfAction });
-          } else {
-            dsTarget.push({ ...barData, _isActionBox: true });
-          }
-
-          let ecdTs = r.ecd ? getTs(r.ecd) : null;
-          let phase1Target = ecdTs || (t0 + (URGENCY_MS[r.urgency] || 0));
-          let endTs = r.endDate ? getTs(r.endDate) : null;
-          let phase2Target = endTs || phase1Target;
-
-          if (r.clm) {
-            const extract = (arr, title) => {
-              if (Array.isArray(arr)) {
-                arr.forEach(item => {
-                  if (item && item.date) {
-                    const mTs = getTs(item.date);
-                    if (mTs) {
-                      masterMilestones.push({ y: labelStr, t: mTs, dateStr: item.date, title: title, pic: item.owner, status: item.status, remarks: item.remarks, expTs: phase1Target });
-                      if (mTs > globalMaxT) globalMaxT = mTs;
-                    }
-                  }
-                });
-              }
-            };
-            extract(r.clm.creation, 'CLM Stage: Creation (Drafting/Authoring)');
-            extract(r.clm.negotiations, 'CLM Stage: Negotiation & Collaboration');
-            extract(r.clm.approval, 'CLM Stage: Approval & Signature (Execution)');
-          }
-
-          if (r.vendorMonitoring && Array.isArray(r.vendorMonitoring)) {
-            r.vendorMonitoring.forEach(hist => {
-              if (hist && hist.date) {
-                const mTs = getTs(hist.date);
-                if (mTs) {
-                  const hasNotMet = hist.metrics && hist.metrics.some(m => m.status === 'Not Met');
-                  const calcStatus = hasNotMet ? 'Breach' : 'Active';
-                  const pics = [...new Set((hist.metrics || []).map(m => m.pic).filter(x => x && x.trim() !== ''))].join(', ');
-                  const remarks = [...new Set((hist.metrics || []).map(m => m.remarks).filter(x => x && x.trim() !== ''))].join(' | ');
-                  masterMilestones.push({ y: labelStr, t: mTs, dateStr: hist.date, title: 'Vendor Monitoring History', pic: pics, status: calcStatus, remarks: remarks, expTs: phase2Target });
-                  if (mTs > globalMaxT) globalMaxT = mTs;
-                }
-              }
-            });
-          }
-
-          if (endTs && endTs > globalMaxT) globalMaxT = endTs;
-          if (targetT > globalMaxT) globalMaxT = targetT;
-          if (endOfAction > globalMaxT) globalMaxT = endOfAction;
-        });
-
-        timelineChart.data._masterLabels = tlLabels;
-        timelineChart.data._masterDone = dsDone;
-        timelineChart.data._masterProg = dsProg;
-        timelineChart.data._masterOpen = dsOpen;
-        timelineChart.data._masterMilestones = masterMilestones;
-
-        const isD = document.querySelector('#timeline-custom-legend .leg-chk[value="0"]')?.checked ?? true;
-        const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
-        const isO = document.querySelector('#timeline-custom-legend .leg-chk[value="2"]')?.checked ?? true;
-        timelineChart.setDatasetVisibility(0, isD);
-        timelineChart.setDatasetVisibility(1, isP);
-        timelineChart.setDatasetVisibility(2, isO);
-
-        applyTimelineFilters(timelineChart, 'timeline-scroll-container');
-
-        const dMin = new Date(globalMinT); dMin.setHours(0, 0, 0, 0);
-        const dMax = new Date(globalMaxT); dMax.setHours(0, 0, 0, 0); dMax.setDate(dMax.getDate() + 1);
-        timelineChart.options.scales.x.min = timelineFiltered.length ? dMin.getTime() : nowTs - 86400000;
-        timelineChart.options.scales.x.max = timelineFiltered.length ? dMax.getTime() : nowTs + 86400000;
-
-        const tlEmpty = document.getElementById('timeline-empty-state');
-        const tlContainer = document.getElementById('timeline-scroll-container');
-        if (tlContainer && tlEmpty) {
-          if (timelineFiltered.length === 0 || timelineChart.data.labels.length === 0) {
-            tlEmpty.style.display = 'block';
-            tlContainer.style.display = 'none';
-          } else {
-            tlEmpty.style.display = 'none';
-            tlContainer.style.display = 'block';
-            timelineChart.update();
-            if (window.enablePan) window.enablePan('acm-timeline-chart');
-          }
-        }
-      }
-
-      if (categoryChart) {
-        let cat1CountsArr = [];
-        const selCatNames = Array.from(document.querySelectorAll('input[name="dash-cat"]:checked')).map(cb => CATS[cb.value]).filter(Boolean);
-        Object.entries(CATS).forEach(([k, name]) => {
-          let count = 0;
-          filtered.forEach(r => { if (r.cat1 && r.cat1[k]) count++; });
-          if (selCatNames.length === 0 || selCatNames.includes(name)) cat1CountsArr.push({ name: name, count: count });
-        });
-        cat1CountsArr.sort((a, b) => b.count - a.count);
-
-        categoryChart.data.labels = cat1CountsArr.map(x => x.name);
-        categoryChart.data.datasets[0].data = cat1CountsArr.map(x => x.count);
-        categoryChart.data.datasets[0].backgroundColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 0.45)');
-        categoryChart.data.datasets[0].borderColor = cat1CountsArr.map(() => 'rgba(37, 99, 235, 1)');
-        categoryChart.options.plugins.verticalLine = false;
-        categoryChart.update();
-      }
-
-      if (urgencyChart) {
-        const uCounts = { '1month': 0, '3months': 0, '6months': 0, '12months': 0 };
-        filtered.forEach(r => { if (r.urgency && uCounts[r.urgency] !== undefined) uCounts[r.urgency]++; });
-        urgencyChart.data.datasets[0].data = [uCounts['1month'], uCounts['3months'], uCounts['6months'], uCounts['12months']];
-        urgencyChart.update();
-      }
+      // Additional dashboard updates are reserved for future enhancements.
     }
 
     function setupDropdownFilters(wrapperId, defaultText) {
@@ -1680,57 +1508,7 @@
           </label>
       </div></div>
 
-      <div class="kpi-grid" id="dash-kpi-grid"></div>
-      <div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Record Timeline</h3><div style="display:flex;gap:6px;"><button class="export-chart-btn" id="toggle-dates-btn" title="Toggle Dates" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>Date</button><button class="export-chart-btn" id="full-view-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button><button class="export-chart-btn" id="save-chart-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button></div></div><div class="hint">Gantt-style timeline showing submission to completion duration for filtered records.<br/><b>Legend: </b><svg width="20" height="12" style="margin-right:4px; vertical-align:middle;"><line x1="0" y1="6" x2="20" y2="6" stroke="#9ca3af" stroke-width="2" stroke-dasharray="5, 4, 2, 4" /></svg> Urgency Phase (Date Issued to CPCD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.35); border:1px solid rgba(37,99,235,0.8); vertical-align:middle; margin-right:4px;"></span> Active Execution</div><div id="timeline-custom-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom: 8px; font-size: 11px; padding-right:10px;"><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label><label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label></div><div style="background:transparent;padding:0;margin-top:0;position:relative"><div id="timeline-empty-state" style="display:none;text-align:center;padding-top:40px;color:var(--text-sec);font-size:12px;position:absolute;top:0;left:0;width:100%;height:100%;background:var(--paper);z-index:10">No record found for the selected view.</div><div class="chart-wrap" style="height:345px;overflow:hidden;position:relative;"><div id="timeline-scroll-container" style="position:relative;width:100%;height:345px;"><canvas id="acm-timeline-chart"></canvas></div></div></div></div>
-
-      <div class="charts-grid">
-        <div class="panel">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <h3 style="margin:0">Category Overview</h3>
-            <button class="export-chart-btn" id="save-cat-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
-          </div>
-          <div class="hint">Frequency of faults by category across filtered records</div>
-          <div style="height:230px;position:relative;width:100%"><canvas id="acm-category-chart"></canvas></div>
-        </div>
-        <div class="panel">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <h3 style="margin:0">Urgency Distribution</h3>
-            <button class="export-chart-btn" id="save-urg-btn" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
-          </div>
-          <div class="hint">Distribution of filtered records by urgency level</div>
-          <div style="height:230px;position:relative;width:100%"><canvas id="acm-urgency-chart"></canvas></div>
-        </div>
-      </div>
-
-      <div class="table-panel"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.875rem;font-weight:800">Recent Contract Records</h3><button id="dash-export-btn" class="btn-export-excel" title="Export this table to Excel"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>Export</button></div><div id="dash-table-container"></div></div>
-
-      <div id="full-view-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,0.85); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(3px);">
-        <div id="full-view-modal-content" style="background:var(--paper); width:96%; height:96%; border-radius:14px; display:flex; flex-direction:column; padding:20px; box-shadow:0 12px 32px rgba(0,0,0,0.3); overflow:hidden;">
-           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-shrink:0;">
-              <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--ink);">Record Timeline - Full View</h3>
-              <div class="fv-toolbar-actions" style="display:flex; gap:8px;">
-                  <button class="btn btn-ghost" id="fv-toggle-dates-btn" style="background:var(--line); padding:4px 10px; font-size:.75rem;">Date</button>
-                  <button class="btn btn-primary" id="full-view-export-btn" style="background:var(--ok);">Save as JPEG</button>
-                  <button class="btn btn-ghost" id="full-view-close-btn" style="background:var(--line);">Close</button>
-              </div>
-           </div>
-           <div class="hint" style="margin-top:-10px; margin-bottom:10px; flex-shrink:0;"><b>Legend: </b><svg width="20" height="12" style="margin-right:4px; vertical-align:middle;"><line x1="0" y1="6" x2="20" y2="6" stroke="#9ca3af" stroke-width="2" stroke-dasharray="5, 4, 2, 4" /></svg> Urgency Phase (Date Issued to CPCD) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; border-bottom: 2px dashed #8b5cf6; width:20px; margin-right:4px;"></span> Contract Box (Start to End Date) &nbsp;&nbsp;|&nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:rgba(59,130,246,0.35); border:1px solid rgba(37,99,235,0.8); vertical-align:middle; margin-right:4px;"></span> Active Execution</div>
-           <div id="fv-legend" style="display:flex; justify-content:flex-end; gap:16px; margin-bottom:12px; font-size:11px; flex-shrink:0;">
-             <label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(5, 150, 105, 0.45); border:1px solid rgba(5, 150, 105, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="0" style="display:none"> Completed</label>
-             <label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(217, 119, 6, 0.45); border:1px solid rgba(217, 119, 6, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="1" style="display:none"> In progress</label>
-             <label style="cursor:pointer; display:flex; align-items:center; gap:4px; opacity:1; transition:0.2s"><span style="display:inline-block; width:12px; height:12px; background:rgba(156, 163, 175, 0.45); border:1px solid rgba(156, 163, 175, 1); border-radius:50%"></span><input type="checkbox" checked class="leg-chk" value="2" style="display:none"> Open</label>
-           </div>
-           <div style="flex:1; position:relative; padding:10px; border:1px solid var(--line); border-radius:8px; display:flex; flex-direction:column; overflow:hidden; min-height:400px;">
-              <div id="fv-canvas-container" style="position:relative; flex:1; width:100%; height:100%;">
-                  <canvas id="acm-timeline-full-chart"></canvas>
-              </div>
-           </div>
-        </div>
-      </div>`;
-
-      document.querySelectorAll('.leg-chk').forEach(chk => {
-        chk.addEventListener('change', (e) => toggleLegend(parseInt(e.target.value), e.target.checked));
-      });
+      <div class="panel" style="min-height:300px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--line-dark); background:transparent;"><div class="empty-state" style="font-size:1.1rem; color:var(--text-sec); font-weight:600">Additional Dashboard sections are reserved for future enhancements.</div></div>`;
 
       setupDropdownFilters('dd-class-wrapper', 'All');
       setupDropdownFilters('dd-crit-wrapper', 'All');
@@ -1744,38 +1522,6 @@
         if (el) el.addEventListener('change', updateDashboardUI);
       });
 
-      const toggleDates = () => {
-        state.showTimelineDates = !state.showTimelineDates;
-        [document.getElementById('toggle-dates-btn'), document.getElementById('fv-toggle-dates-btn')].forEach(btn => {
-          if (btn) {
-            if (state.showTimelineDates) {
-              btn.style.background = 'var(--paper)';
-              btn.style.color = 'var(--accent)';
-              btn.style.borderColor = 'var(--accent)';
-            } else {
-              btn.style.background = btn.id === 'fv-toggle-dates-btn' ? 'var(--line)' : 'var(--bg)';
-              btn.style.color = 'var(--text-sec)';
-              btn.style.borderColor = 'var(--line)';
-            }
-          }
-        });
-        if (timelineChart) timelineChart.update('none');
-        if (window.fullViewChart) window.fullViewChart.update('none');
-      };
-
-      const bTd = document.getElementById('toggle-dates-btn');
-      if (bTd) bTd.addEventListener('click', toggleDates);
-      const bFvTd = document.getElementById('fv-toggle-dates-btn');
-      if (bFvTd) bFvTd.addEventListener('click', toggleDates);
-
-      [bTd, bFvTd].forEach(btn => {
-        if (btn && state.showTimelineDates) {
-          btn.style.background = 'var(--paper)';
-          btn.style.color = 'var(--accent)';
-          btn.style.borderColor = 'var(--accent)';
-        }
-      });
-
       document.getElementById('dash-reset-btn').addEventListener('click', () => {
         document.getElementById('dash-start').value = defStart;
         document.getElementById('dash-end').value = defEnd;
@@ -1784,333 +1530,6 @@
           const btn = document.querySelector(`#${id} .dd-btn`);
           if (btn) btn.innerHTML = 'All';
         });
-        updateDashboardUI();
-      });
-
-      document.getElementById('dash-export-btn').addEventListener('click', () => {
-        const filteredForExport = getFilteredDashboardRecords().sort((a, b) => b.createdAt - a.createdAt);
-        if (filteredForExport.length === 0) return showModal("Export Failed", "No record to export based on current filters.", "alert", true);
-        const csvRows = [['Record No.', 'Date Issued', 'Start Date', 'Title', 'Area', 'Sub-Area', 'Area No.', 'Line/Equipment', 'No.', 'Conveyor/Item', 'Category', 'Urgency', 'CPCD', 'End Date', 'Status']];
-        filteredForExport.forEach(r => {
-          const st = getStatus(r), urg = URGENCY[r.urgency] || '';
-          let catList = [];
-          if (r.cat1) Object.keys(CATS).forEach(k => { if (r.cat1[k]) catList.push(CATS[k]); });
-          csvRows.push([`"${r.reportNo || ''}"`, `"${fmtDate(r)}"`, `"${r.startDate ? fmtDate({ happeningDate: r.startDate }) : ''}"`, `"${(r.title || '').replace(/"/g, '""')}"`, `"${r.area || ''}"`, `"${r.subArea || ''}"`, `"${r.areaNo || ''}"`, `"${r.lineEquipment || ''}"`, `"${r.equipNo || ''}"`, `"${(r.conveyorItem || '').replace(/"/g, '""')}"`, `"${catList.join(', ')}"`, `"${urg}"`, `"${r.ecd ? fmtDate({ happeningDate: r.ecd }) : ''}"`, `"${r.endDate ? fmtDate({ happeningDate: r.endDate }) : ''}"`, `"${st === 'done' ? 'Completed' : st === 'progress' ? 'In progress' : 'Open'}"`]);
-        });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(new Blob(["\uFEFF" + csvRows.map(e => e.join(",")).join("\n")], { type: 'text/csv;charset=utf-8;' }));
-        link.download = "Filtered_Maintenance_Records.csv";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      });
-
-      document.getElementById('full-view-btn').addEventListener('click', () => {
-        document.getElementById('full-view-overlay').style.display = 'flex';
-        const fvCtx = document.getElementById('acm-timeline-full-chart');
-        if (window.fullViewChart) window.fullViewChart.destroy();
-        window.fullViewChart = createTimelineChart(fvCtx);
-
-        window.fullViewChart.data._masterLabels = timelineChart.data._masterLabels;
-        window.fullViewChart.data._masterDone = timelineChart.data._masterDone;
-        window.fullViewChart.data._masterProg = timelineChart.data._masterProg;
-        window.fullViewChart.data._masterOpen = timelineChart.data._masterOpen;
-        window.fullViewChart.data._masterMilestones = timelineChart.data._masterMilestones;
-
-        const isD = document.querySelector('#timeline-custom-legend .leg-chk[value="0"]')?.checked ?? true;
-        const isP = document.querySelector('#timeline-custom-legend .leg-chk[value="1"]')?.checked ?? true;
-        const isO = document.querySelector('#timeline-custom-legend .leg-chk[value="2"]')?.checked ?? true;
-        window.fullViewChart.setDatasetVisibility(0, isD);
-        window.fullViewChart.setDatasetVisibility(1, isP);
-        window.fullViewChart.setDatasetVisibility(2, isO);
-
-        const sDate = document.getElementById('dash-start').value;
-        const eDate = document.getElementById('dash-end').value;
-        window.fullViewChart.options.scales.x.min = getTs(sDate);
-        window.fullViewChart.options.scales.x.max = getTs(eDate) + 86400000;
-
-        applyTimelineFilters(window.fullViewChart, 'fv-canvas-container');
-        if (window.enablePan) window.enablePan('acm-timeline-full-chart');
-      });
-
-      document.getElementById('full-view-close-btn').addEventListener('click', () => {
-        document.getElementById('full-view-overlay').style.display = 'none';
-      });
-
-      bindJPEGExport('save-chart-btn', 'Record_Timeline.jpg');
-      bindJPEGExport('save-cat-btn', 'Fault_Category.jpg');
-      bindJPEGExport('save-urg-btn', 'Urgency_Distribution.jpg');
-      bindJPEGExport('full-view-export-btn', 'Record_Timeline_FullView.jpg', 'full-view-modal-content');
-
-      ensureChartJs(() => {
-        if (typeof Chart === 'undefined') {
-          const errDiv = document.getElementById('timeline-scroll-container');
-          if (errDiv) errDiv.innerHTML = `<div style="text-align:center;padding-top:40px;color:#dc2626;font-weight:bold;font-size:14px;">Chart.js could not be loaded. Please check your network or firewall.</div>`;
-          return;
-        }
-
-        window.enablePan = function (canvasId) {
-          const canvas = document.getElementById(canvasId);
-          if (!canvas || canvas.dataset.panEnabled) return;
-          canvas.dataset.panEnabled = "true";
-
-          let startX, startY, initXMin, initXMax, initYMin, initYMax;
-          const tooltip = document.getElementById('acm-custom-tooltip');
-
-          canvas.addEventListener('pointerdown', e => {
-            const chartInstance = Chart.getChart(canvas);
-            if (!chartInstance) return;
-            canvas.setPointerCapture(e.pointerId);
-            startX = e.clientX;
-            startY = e.clientY;
-            initXMin = chartInstance.options.scales.x.min ?? chartInstance.scales.x.min;
-            initXMax = chartInstance.options.scales.x.max ?? chartInstance.scales.x.max;
-            initYMin = chartInstance.options.scales.y.min || 0;
-            initYMax = chartInstance.options.scales.y.max !== undefined ? chartInstance.options.scales.y.max : (chartInstance.data.labels.length - 1);
-            canvas.style.cursor = 'grabbing';
-            canvas.dataset.isDragging = "true";
-            if (tooltip) tooltip.classList.remove('show');
-          });
-
-          canvas.addEventListener('pointermove', e => {
-            const chartInstance = Chart.getChart(canvas);
-            if (!chartInstance) return;
-
-            if (canvas.dataset.isDragging !== "true" && tooltip) {
-              const rect = canvas.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const y = e.clientY - rect.top;
-              const xAxis = chartInstance.scales.x;
-              const yAxis = chartInstance.scales.y;
-              let showTooltip = false, html = '';
-
-              if (x >= 0 && x <= yAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
-                const val = yAxis.getValueForPixel(y);
-                if (val >= 0 && val < chartInstance.data.labels.length) {
-                  const labelStr = chartInstance.data.labels[val];
-                  const rawData = [...chartInstance.data._masterDone, ...chartInstance.data._masterProg, ...chartInstance.data._masterOpen].find(d => d.y === labelStr);
-                  if (rawData && rawData._r) {
-                    html = buildRecordTooltip(rawData._r);
-                    showTooltip = true;
-                  }
-                }
-              } else if (x > yAxis.right && x <= xAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
-                const val = yAxis.getValueForPixel(y);
-                const time = xAxis.getValueForPixel(x);
-                const labelStr = chartInstance.data.labels[val];
-
-                if (labelStr && chartInstance.data._masterMilestones) {
-                  const msPerPx = (xAxis.max - xAxis.min) / xAxis.width;
-                  const threshold = msPerPx * 15;
-                  const yTargetPx = yAxis.getPixelForValue(val);
-
-                  if (Math.abs(y - yTargetPx) < 15) {
-                    const milestones = chartInstance.data._masterMilestones.filter(m => m.y === labelStr);
-                    for (let m of milestones) {
-                      if (Math.abs(m.t - time) < threshold) {
-                        html = buildMilestoneTooltip(m);
-                        showTooltip = true;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-
-              if (showTooltip) {
-                tooltip.innerHTML = html;
-                tooltip.classList.add('show');
-                tooltip.style.display = 'block';
-                tooltip.style.left = (e.clientX + 15) + 'px';
-                tooltip.style.top = (e.clientY + 15) + 'px';
-              } else {
-                tooltip.classList.remove('show');
-                setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
-              }
-            }
-
-            if (!canvas.hasPointerCapture(e.pointerId) || canvas.dataset.isDragging !== "true") return;
-
-            const diffX = e.clientX - startX;
-            const diffY = e.clientY - startY;
-
-            const xAxis = chartInstance.scales.x;
-            const msPerPx = (initXMax - initXMin) / xAxis.width;
-            chartInstance.options.scales.x.min = initXMin - (diffX * msPerPx);
-            chartInstance.options.scales.x.max = initXMax - (diffX * msPerPx);
-
-            const yAxis = chartInstance.scales.y;
-            const labelsLen = chartInstance.data.labels.length;
-            if (labelsLen > 0) {
-              const visibleCount = initYMax - initYMin + 1;
-              const pxPerItem = yAxis.height / visibleCount;
-              let shiftY = -Math.round(diffY / pxPerItem);
-              let newMin = initYMin + shiftY;
-              let newMax = initYMax + shiftY;
-
-              if (newMin < 0) { newMax -= newMin; newMin = 0; }
-              if (newMax >= labelsLen) {
-                const excess = newMax - (labelsLen - 1);
-                newMin -= excess;
-                newMax = labelsLen - 1;
-                if (newMin < 0) newMin = 0;
-              }
-              chartInstance.options.scales.y.min = newMin;
-              chartInstance.options.scales.y.max = newMax;
-            }
-            chartInstance.update('none');
-          });
-
-          canvas.addEventListener('pointerup', e => {
-            canvas.releasePointerCapture(e.pointerId);
-            canvas.style.cursor = 'grab';
-            canvas.dataset.isDragging = "false";
-          });
-
-          canvas.addEventListener('pointerleave', () => {
-            if (tooltip) {
-              tooltip.classList.remove('show');
-              setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
-            }
-          });
-
-          canvas.addEventListener('wheel', e => {
-            e.preventDefault();
-            const chartInstance = Chart.getChart(canvas);
-            if (!chartInstance) return;
-
-            const zoomIntensity = 0.1;
-            const zoomDir = e.deltaY < 0 ? 1 : -1;
-            const xAxis = chartInstance.scales.x;
-            const yAxis = chartInstance.scales.y;
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            let curXMin = chartInstance.options.scales.x.min ?? xAxis.min;
-            let curXMax = chartInstance.options.scales.x.max ?? xAxis.max;
-            const xRange = curXMax - curXMin;
-            const xRatio = Math.max(0, Math.min(1, (mouseX - xAxis.left) / xAxis.width));
-            const xDelta = xRange * zoomIntensity * zoomDir;
-
-            chartInstance.options.scales.x.min = curXMin + xDelta * xRatio;
-            chartInstance.options.scales.x.max = curXMax - xDelta * (1 - xRatio);
-
-            const labelsLen = chartInstance.data.labels.length;
-            if (labelsLen > 0) {
-              let curYMin = chartInstance.options.scales.y.min ?? 0;
-              let curYMax = chartInstance.options.scales.y.max ?? (labelsLen - 1);
-              const yRange = curYMax - curYMin;
-
-              if (!(zoomDir === -1 && curYMin <= 0 && curYMax >= labelsLen - 1)) {
-                const yRatio = Math.max(0, Math.min(1, (mouseY - yAxis.top) / yAxis.height));
-                const yDelta = Math.max(1, yRange * zoomIntensity) * zoomDir;
-                let newYMin = curYMin + yDelta * yRatio;
-                let newYMax = curYMax - yDelta * (1 - yRatio);
-
-                if (zoomDir === -1) {
-                  if (newYMin < 0) { newYMax -= newYMin; newYMin = 0; }
-                  if (newYMax >= labelsLen) { newYMin -= (newYMax - (labelsLen - 1)); newYMax = labelsLen - 1; if (newYMin < 0) newYMin = 0; }
-                }
-                if (newYMax - newYMin >= 1) {
-                  chartInstance.options.scales.y.min = Math.max(0, Math.floor(newYMin));
-                  chartInstance.options.scales.y.max = Math.min(labelsLen - 1, Math.ceil(newYMax));
-                }
-              }
-            }
-            chartInstance.update('none');
-          }, { passive: false });
-
-          canvas.addEventListener('dblclick', () => {
-            if (canvasId === 'acm-timeline-chart') updateDashboardUI();
-            else document.getElementById('full-view-btn').click();
-          });
-
-          canvas.style.cursor = 'grab';
-        };
-
-        const customBgPlugin = {
-          id: 'customCanvasBackgroundColor',
-          beforeDraw: (c, a, o) => {
-            const ctx = c.ctx;
-            ctx.save();
-            ctx.globalCompositeOperation = 'destination-over';
-            ctx.fillStyle = o.color || '#ffffff';
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.restore();
-          }
-        };
-
-        const tlCtx = document.getElementById('acm-timeline-chart');
-        if (tlCtx) {
-          if (timelineChart) timelineChart.destroy();
-          timelineChart = createTimelineChart(tlCtx);
-        }
-
-        const catCtx = document.getElementById('acm-category-chart');
-        if (catCtx) {
-          if (categoryChart) categoryChart.destroy();
-          categoryChart = new Chart(catCtx, {
-            type: 'bar',
-            plugins: [customBgPlugin],
-            data: { labels: [], datasets: [{ label: 'Occurrences', data: [], backgroundColor: [], borderColor: [], borderWidth: 1, borderRadius: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.95)', titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 12 }, padding: 10, cornerRadius: 8 } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Total Memo', font: { size: 12, weight: 'bold' } }, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0, display: true } } } }
-          });
-        }
-
-        const centerTextPlugin = {
-          id: 'centerText',
-          beforeDraw: c => {
-            if (c.config.type !== 'doughnut') return;
-            const w = c.width, h = c.height, ctx = c.ctx;
-            ctx.restore();
-            const meta = c.getDatasetMeta(0);
-            const centerX = meta.data.length ? meta.data[0].x : w / 2;
-            const centerY = meta.data.length ? meta.data[0].y : h / 2;
-            ctx.font = "bold " + (h / 114).toFixed(2) + "em sans-serif";
-            ctx.textBaseline = "middle";
-            ctx.textAlign = "center";
-            ctx.fillStyle = "#1f2937";
-            const tot = c.data.datasets[0].data.reduce((a, b) => a + b, 0);
-            ctx.fillText(tot.toString(), centerX, centerY - 6);
-            ctx.font = "normal " + ((h / 114).toFixed(2) * 0.35) + "em sans-serif";
-            ctx.fillText("Total Memo", centerX, centerY + 12);
-            ctx.save();
-          }
-        };
-
-        const sliceLabelsPlugin = {
-          id: 'sliceLabels',
-          afterDatasetsDraw: c => {
-            if (c.config.type !== 'doughnut') return;
-            const ctx = c.ctx, ds = c.data.datasets[0], tot = ds.data.reduce((a, b) => a + b, 0);
-            if (!tot) return;
-            c.getDatasetMeta(0).data.forEach((sec, i) => {
-              if (!ds.data[i]) return;
-              const pos = sec.tooltipPosition();
-              ctx.fillStyle = '#374151';
-              ctx.font = 'bold 13px sans-serif';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.shadowColor = 'rgba(255,255,255,0.85)';
-              ctx.shadowBlur = 4;
-              ctx.fillText(Math.round((ds.data[i] / tot) * 100) + '%', pos.x, pos.y);
-              ctx.shadowBlur = 0;
-            });
-          }
-        };
-
-        const urgCtx = document.getElementById('acm-urgency-chart');
-        if (urgCtx) {
-          if (urgencyChart) urgencyChart.destroy();
-          urgencyChart = new Chart(urgCtx, {
-            type: 'doughnut',
-            plugins: [customBgPlugin, centerTextPlugin, sliceLabelsPlugin],
-            data: { labels: ['1 month', '3 months', '6 months', '12 months'], datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['rgba(220, 38, 38, 0.45)', 'rgba(217, 119, 6, 0.45)', 'rgba(234, 179, 8, 0.45)', 'rgba(37, 99, 235, 0.45)'], borderColor: ['rgba(220, 38, 38, 1)', 'rgba(217, 119, 6, 1)', 'rgba(234, 179, 8, 1)', 'rgba(37, 99, 235, 1)'], borderWidth: 1, hoverOffset: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '45%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, font: { size: 11 } } }, tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.95)', titleFont: { size: 13, weight: 'bold' }, bodyFont: { size: 12 }, padding: 10, cornerRadius: 8, callbacks: { label: c => ` ${c.label || ''}: ${c.raw || 0} record${c.raw !== 1 ? 's' : ''} (${Math.round(((c.raw || 0) / (c.chart._metasets[c.datasetIndex].total || 1)) * 100)}%)` } } } }
-          });
-        }
-
         updateDashboardUI();
       });
     }
@@ -2745,8 +2164,16 @@
         </div>
       `;
 
-      const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Contract List</div>
-          <div class="table-panel" style="padding:0;border:none">
+      const listSec = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px; margin-top:20px;">
+        <h3 style="margin:0;font-size:.875rem;font-weight:800">Contract Lifecycle Management (CLM)</h3>
+      </div>
+      <div class="sec" style="margin-top:0">
+          <div class="sec-title" id="cm-contract-list-toggle" style="margin:0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+             <span>Contract List</span>
+             <span id="cm-contract-list-icon" style="font-size:0.8rem; color:var(--text-sec);">▼</span>
+          </div>
+          <div class="table-panel" id="cm-contract-list-table" style="padding:0;border:none;display:none;margin-top:10px;">
               ${contracts.length === 0 ? `<div class="empty-state">No records found. Create one in Record Input.</div>` :
               `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Classification</th><th>Criteria</th><th>Vendor</th><th>Date Issued</th><th>CPCD</th><th>Monitoring</th><th>CLM Status</th></tr></thead><tbody>${rows}</tbody></table>`}
           </div>
@@ -2873,6 +2300,21 @@
       }
 
       container.innerHTML = `<div style="background:transparent;">${cmAnalyticsHtml}</div><div class="form-shell">${listSec}${clmSec}</div>`;
+
+      const contractListToggle = container.querySelector('#cm-contract-list-toggle');
+      if (contractListToggle) {
+        contractListToggle.addEventListener('click', () => {
+          const table = container.querySelector('#cm-contract-list-table');
+          const icon = container.querySelector('#cm-contract-list-icon');
+          if (table.style.display === 'none') {
+            table.style.display = 'block';
+            icon.textContent = '▲';
+          } else {
+            table.style.display = 'none';
+            icon.textContent = '▼';
+          }
+        });
+      }
 
       container.querySelectorAll('.cm-leg-chk').forEach(chk => {
         chk.addEventListener('change', (e) => toggleCMLegend(parseInt(e.target.value), e.target.checked));
