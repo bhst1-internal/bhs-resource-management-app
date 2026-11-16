@@ -290,7 +290,8 @@
       top: 0;
       left: 0;
       width: 1280px;
-      height: 720px;
+      min-height: 720px;
+      padding-bottom: 80px;
       transform-origin: 0 0;
       /* Removed will-change: transform; to keep vector text razor sharp when zooming */
     }
@@ -298,7 +299,8 @@
     /* Org Chart Canvas (1280 x 720 exact proportional design) */
     .org-canvas {
       width: 1280px;
-      height: 720px;
+      min-height: 720px;
+      height: max-content;
       margin: 0 auto;
       overflow: hidden;
       box-sizing: border-box;
@@ -801,6 +803,10 @@
           inputEl.type = 'date';
           inputEl.placeholder = '';
           inputEl.style.display = 'block';
+        } else if (type === 'prompt-text') {
+          inputEl.type = 'text';
+          inputEl.placeholder = 'Enter name...';
+          inputEl.style.display = 'block';
         } else {
           inputEl.style.display = 'none';
         }
@@ -875,7 +881,10 @@
       orgZoomMode: 'fit',
       orgZoomLevel: 0.9,
       orgPanX: 0,
-      orgPanY: 0
+      orgPanY: 0,
+      orgEditMode: false,
+      orgUndoStack: [],
+      orgPagesHtml: null
     };
 
     const checkReq = v => v != null && String(v).trim() !== '';
@@ -3021,8 +3030,14 @@
        MANPOWER MANAGEMENT — 6-PAGE COMPANY ORGANIZATION CHART TEMPLATES
        ========================================================================= */
     function getOrgPageMarkup(pageId) {
+      if (state.orgPagesHtml && state.orgPagesHtml[pageId]) {
+        return state.orgPagesHtml[pageId];
+      }
+
+      let html = '';
+      
       if (pageId === 1) {
-        return `
+        html = `
         <div class="org-canvas" id="org-canvas-active">
           <div style="text-align: center; margin-bottom: 12px;">
             <h1 style="font-size: 32px; font-weight: 800; color: #0f172a; margin: 0;">Baggage Handling &amp; Screening Maintenance (Terminal 1)</h1>
@@ -3283,9 +3298,7 @@
             </div>
           </div>
         </div>`;
-      }
-
-      if (pageId === 2 || pageId === 3 || pageId === 4 || pageId === 5) {
+      } else if (pageId >= 2 && pageId <= 5) {
         const shiftConfigs = {
           2: {
             title: 'BHS Maintenance — Shift A',
@@ -3545,11 +3558,11 @@
             </div>
           </div>
         </div>`;
-      }
-
-      /* Page 6: Complete Integrated Master Chart */
-      return `
-      <div class="org-canvas org-page-6" id="org-canvas-active">
+      } else {
+        /* Page 6: Complete Integrated Master Chart */
+        html = `
+        <div class="org-canvas org-page-6" id="org-canvas-active">
+          <div style="text-align: center; margin-bottom: 4px;">
         <div style="text-align: center; margin-bottom: 4px;">
           <h1 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.15;">Baggage Handling &amp; Screening Maintenance (Terminal 1)</h1>
           <p style="font-size: 11px; color: #64748b; margin: 2px 0 0 0;">Complete Organization Chart (Office Hour &amp; Shift Operations)</p>
@@ -4031,15 +4044,176 @@
                       <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift D — Screening"><p class="name">MOHAMAD FAUZI</p><p class="title">TECH. OFFICER</p></div>
                       <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
                       <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Screening"><p class="name">LUQMAN HAKIM</p></div>
-                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Screening"><p class="name">NURUL IMAN</p></div>
-                    </div>
+                <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Screening"><p class="name">NURUL IMAN AL IZWAN</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+      }
+
+      if (!state.orgPagesHtml) state.orgPagesHtml = {};
+      state.orgPagesHtml[pageId] = html;
+      return html;
+    }
+
+    /* Org Chart Edit Mode Helpers */
+    function showOrgEditModal(card, onSave, onRemove) {
+      let overlay = document.getElementById('org-edit-modal');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'org-edit-modal';
+        overlay.innerHTML = `
+          <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+            <div style="background:var(--paper); border-radius:12px; padding:24px; width:380px; box-shadow:0 20px 40px rgba(0,0,0,0.3);">
+              <h3 style="margin:0 0 16px 0; font-size:1.1rem; color:var(--ink);">Edit Personnel</h3>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <label class="f">Name <input type="text" id="oem-name"/></label>
+                <label class="f">Title <input type="text" id="oem-title"/></label>
+                <label class="chk" style="margin-top:4px;"><input type="checkbox" id="oem-vacant"/> Position is Vacant</label>
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                  <button class="btn btn-danger" id="oem-remove">Remove</button>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn btn-ghost" id="oem-cancel">Cancel</button>
+                    <button class="btn btn-primary" id="oem-save">Save Changes</button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>`;
+        `;
+        document.body.appendChild(overlay);
+      }
+      
+      const nEl = card.querySelector('.name');
+      const tEl = card.querySelector('.title');
+      document.getElementById('oem-name').value = nEl ? nEl.innerText.replace(/\n/g, ' ') : '';
+      document.getElementById('oem-title').value = tEl ? tEl.innerText.replace(/\n/g, ' ') : '';
+      document.getElementById('oem-vacant').checked = card.getAttribute('data-role') === 'vacant';
+      
+      overlay.style.display = 'flex';
+      
+      document.getElementById('oem-cancel').onclick = () => overlay.style.display = 'none';
+      document.getElementById('oem-remove').onclick = () => { overlay.style.display = 'none'; onRemove(); };
+      document.getElementById('oem-save').onclick = () => {
+        overlay.style.display = 'none';
+        onSave({
+          name: document.getElementById('oem-name').value,
+          title: document.getElementById('oem-title').value,
+          vacant: document.getElementById('oem-vacant').checked
+        });
+      };
+    }
+
+    function updateCardDOM(c, data) {
+      const nEl = c.querySelector('.name');
+      const tEl = c.querySelector('.title');
+      if (nEl) nEl.textContent = data.name;
+      if (tEl) tEl.innerHTML = data.title.replace(/\n/g, '<br>');
+      
+      if (data.vacant) {
+        c.style.background = '#94a3b8';
+        const match = c.className.match(/color-\w+/);
+        if (match) c.setAttribute('data-orig-color', match[0]);
+        c.className = c.className.replace(/color-\w+/g, '').trim();
+        c.setAttribute('data-role', 'vacant');
+        if (nEl && nEl.textContent !== 'VACANT') nEl.innerHTML = 'VACANT<br>' + data.name;
+      } else {
+        c.style.background = '';
+        const origColor = c.getAttribute('data-orig-color') || 'color-techoff';
+        if (!c.className.includes(origColor)) c.classList.add(origColor);
+        c.setAttribute('data-role', origColor.replace('color-', ''));
+        if (nEl && nEl.textContent.startsWith('VACANT')) nEl.textContent = data.name;
+      }
+    }
+
+    function removeEditControls(container) {
+      container.querySelectorAll('.org-add-btn').forEach(btn => btn.remove());
+      container.querySelectorAll('.org-person-card').forEach(c => {
+        c.style.outline = '';
+        c.style.cursor = '';
+        c.title = '';
+      });
+    }
+
+    function injectEditControls(container) {
+      if (!state.orgEditMode) return;
+      const cards = container.querySelectorAll('.org-person-card');
+      cards.forEach(card => {
+        card.style.outline = '2px dashed #94a3b8';
+        card.style.cursor = 'pointer';
+        card.title = 'Click to Edit Personnel';
+      });
+
+      const addContainers = [];
+      container.querySelectorAll('.node-group').forEach(el => addContainers.push(el));
+      container.querySelectorAll('div[style*="gap: 1.5px"]').forEach(el => {
+        if (el.querySelector('.s6-role-lbl')) addContainers.push(el);
+      });
+      container.querySelectorAll('div[style*="gap: 2px"]').forEach(el => {
+        if (el.querySelector('.s6-pill-sm')) addContainers.push(el);
+      });
+
+      addContainers.forEach(target => {
+        if (target.querySelector('.org-add-btn')) return;
+        const btn = document.createElement('button');
+        btn.className = 'org-add-btn btn btn-ghost';
+        btn.innerHTML = '✚ Add';
+        btn.style.marginTop = '4px';
+        btn.style.padding = '2px 8px';
+        btn.style.fontSize = '8px';
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+          const siblings = Array.from(target.querySelectorAll('.org-person-card'));
+          let template = siblings.length > 0 ? siblings[0].cloneNode(true) : null;
+          if (!template) {
+            template = document.createElement('div');
+            template.className = 'name-badge badge-simple org-person-card';
+            template.innerHTML = '<p class="name">NEW PERSONNEL</p>';
+          } else {
+            const nEl = template.querySelector('.name');
+            if (nEl) nEl.textContent = 'NEW PERSONNEL';
+            const tEl = template.querySelector('.title');
+            if (tEl) tEl.textContent = '';
+          }
+          template.style.outline = '';
+          template.style.background = '#94a3b8';
+          template.className = template.className.replace(/color-\w+/g, '').trim();
+          template.setAttribute('data-role', 'vacant');
+          
+          const addBtn = target.querySelector('.org-add-btn');
+          if (addBtn) target.insertBefore(template, addBtn);
+          else target.appendChild(template);
+          
+          const stage = document.getElementById('org-scale-stage');
+          removeEditControls(stage);
+          state.orgPagesHtml[state.orgPage] = stage.innerHTML;
+          injectEditControls(stage);
+          updateOrgKPIs();
+        };
+        target.appendChild(btn);
+      });
+    }
+
+    function syncOtherPages(sourcePageId, oldName, newData) {
+      if (!oldName) return;
+      for (let pid in state.orgPagesHtml) {
+        if (Number(pid) === sourcePageId) continue;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = state.orgPagesHtml[pid];
+        let modified = false;
+        tempDiv.querySelectorAll('.org-person-card').forEach(c => {
+          const nEl = c.querySelector('.name');
+          if (nEl && nEl.innerText.trim() === oldName) {
+            updateCardDOM(c, newData);
+            modified = true;
+          }
+        });
+        if (modified) state.orgPagesHtml[pid] = tempDiv.innerHTML;
+      }
     }
 
     function renderManpowerManagement(container) {
@@ -4063,6 +4237,16 @@
 
         <div class="form-shell" style="padding: 16px 18px 20px;">
           <div class="org-toolbar">
+            ${state.orgEditMode ? `
+              <div style="background:#fef08a; border:1px solid #facc15; color:#854d0e; padding:6px 12px; font-weight:800; font-size:.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px; box-shadow:0 2px 6px rgba(250, 204, 21, 0.2);">
+                <span><i class="fa-solid fa-wrench"></i> EDIT MODE ACTIVE</span>
+                <div style="display:flex; gap:8px;">
+                  <button id="org-add-section-btn" class="btn btn-primary" style="padding:4px 10px; font-size:.7rem;"><i class="fa-solid fa-plus"></i> Add Sub-Section</button>
+                  <button id="org-undo-btn" class="btn btn-ghost" style="padding:4px 10px; font-size:.7rem; border:1px solid #d1d5db; background:#ffffff; color:#374151;"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+                  <button id="org-exit-edit-btn" class="btn btn-danger" style="padding:4px 10px; font-size:.7rem;">Exit Edit Mode ✕</button>
+                </div>
+              </div>
+            ` : ''}
             <div class="org-page-tabs" id="org-page-tabs">
               ${ORG_PAGES.map(p => `
                 <button type="button" class="org-page-btn ${state.orgPage === p.id ? 'active' : ''}" data-org-page="${p.id}">
@@ -4073,6 +4257,7 @@
             </div>
 
             <div style="display:flex;gap:6px;">
+              ${!state.orgEditMode ? `<button type="button" class="btn btn-ghost" id="org-manage-btn" style="padding:4px 8px; font-size:.65rem; font-weight:700;"><i class="fa-solid fa-user-edit"></i> Manage Personnel</button>` : ''}
               <button type="button" class="export-chart-btn" id="org-fullview-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button>
               <button type="button" class="export-chart-btn" id="org-export-jpg" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
             </div>
@@ -4168,6 +4353,8 @@
           kpiGrid.innerHTML = kpiCards.map(c => `<div class="kpi-card"><div class="bar" style="background:${c.c}"></div><div class="kpi-label">${c.l}</div><div class="kpi-value">${c.v}</div><div class="kpi-sub">${c.s}</div>${c.p}</div>`).join('');
         }
       }
+      // expose it to parent scope for edit modes
+      window.updateOrgKPIs = updateOrgKPIs;
 
       /* Apply Search & Role Filtering Highlights */
       function applyOrgFilters() {
@@ -4389,12 +4576,150 @@
         searchInput.focus();
       });
 
+      /* Manage Personnel - Admin Controls */
+      if (!state.orgEditMode) {
+        const manageBtn = container.querySelector('#org-manage-btn');
+        if (manageBtn) {
+          manageBtn.addEventListener('click', async () => {
+            const pwd = await showModal("Authorization", "Enter admin password to manage the organization chart:", "prompt");
+            if (pwd === 'KLIA123!') {
+              state.orgEditMode = true;
+              if (!state.orgUndoStack) state.orgUndoStack = [];
+              render();
+            } else if (pwd !== null) {
+              await showModal("Error", "Incorrect password.", "alert", true);
+            }
+          });
+        }
+      } else {
+        container.querySelector('#org-exit-edit-btn').addEventListener('click', () => {
+          state.orgEditMode = false;
+          const stage = document.getElementById('org-scale-stage');
+          removeEditControls(stage);
+          state.orgPagesHtml[state.orgPage] = stage.innerHTML;
+          saveRecords();
+          render();
+        });
+        
+        container.querySelector('#org-undo-btn').addEventListener('click', () => {
+          if (!state.orgUndoStack || state.orgUndoStack.length === 0) return;
+          state.orgPagesHtml = state.orgUndoStack.pop();
+          const stage = document.getElementById('org-scale-stage');
+          stage.innerHTML = state.orgPagesHtml[state.orgPage];
+          injectEditControls(stage);
+          updateOrgKPIs();
+        });
+
+        container.querySelector('#org-add-section-btn').addEventListener('click', async () => {
+          const secName = await showModal("Add Sub-Section", "Enter the name for the new sub-section branch:", "prompt-text", "");
+          if (!secName) return;
+          
+          state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+          const stage = document.getElementById('org-scale-stage');
+          
+          let targetContainer = null;
+          if (state.orgPage === 6) {
+            const brackets = Array.from(stage.querySelectorAll('.s6-lower-bracket'));
+            if (brackets.length > 0) targetContainer = brackets[brackets.length - 1].nextElementSibling;
+          } else {
+            const flexes = Array.from(stage.querySelectorAll('div[style*="display: flex"]'));
+            targetContainer = flexes.find(el => el.children.length >= 2 && el.clientWidth > 500);
+          }
+          
+          if (targetContainer) {
+            const lastChild = targetContainer.lastElementChild;
+            if (lastChild) {
+              const clone = lastChild.cloneNode(true);
+              clone.querySelectorAll('.name').forEach(el => el.textContent = 'VACANT');
+              clone.querySelectorAll('.title').forEach(el => el.textContent = 'NEW ROLE');
+              clone.querySelectorAll('.org-person-card').forEach(c => {
+                 c.style.background = '#94a3b8';
+                 c.className = c.className.replace(/color-\w+/g, '').trim();
+                 c.setAttribute('data-role', 'vacant');
+              });
+              const hdr = clone.querySelector('.s6-disc-hdr, h3');
+              if (hdr) hdr.textContent = secName.toUpperCase();
+              targetContainer.appendChild(clone);
+              
+              const prevBracket = targetContainer.previousElementSibling;
+              if (prevBracket && prevBracket.className.includes('bracket')) {
+                if (prevBracket.className === 's6-lower-bracket') {
+                  const drop = document.createElement('div');
+                  drop.className = 's6-lower-drop';
+                  prevBracket.appendChild(drop);
+                }
+              }
+            }
+          }
+          removeEditControls(stage);
+          state.orgPagesHtml[state.orgPage] = stage.innerHTML;
+          injectEditControls(stage);
+          updateOrgKPIs();
+        });
+      }
+
+      if (state.orgEditMode) {
+        setTimeout(() => {
+           const stage = document.getElementById('org-scale-stage');
+           if(stage) injectEditControls(stage);
+        }, 50);
+      }
+
       /* Click-to-Inspect Personnel Node */
       const handleCardClick = (e) => {
         if (suppressCardClick) return;
         const card = e.target.closest('.org-person-card');
         if (!card) return;
         e.stopPropagation();
+
+        if (state.orgEditMode) {
+           showOrgEditModal(card, 
+             (newData) => {
+                state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+                const nEl = card.querySelector('.name');
+                const oldName = nEl ? nEl.innerText.trim() : '';
+                updateCardDOM(card, newData);
+                
+                const stage = document.getElementById('org-scale-stage');
+                removeEditControls(stage);
+                state.orgPagesHtml[state.orgPage] = stage.innerHTML;
+                
+                syncOtherPages(state.orgPage, oldName, newData);
+                injectEditControls(stage);
+                updateOrgKPIs();
+             }, 
+             () => {
+                state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+                const nEl = card.querySelector('.name');
+                const oldName = nEl ? nEl.innerText.trim() : '';
+                
+                card.remove();
+                const stage = document.getElementById('org-scale-stage');
+                removeEditControls(stage);
+                state.orgPagesHtml[state.orgPage] = stage.innerHTML;
+                
+                if (oldName && !oldName.includes('VACANT') && !oldName.includes('NEW PERSONNEL')) {
+                  for (let pid in state.orgPagesHtml) {
+                    if (Number(pid) === state.orgPage) continue;
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = state.orgPagesHtml[pid];
+                    let modified = false;
+                    tempDiv.querySelectorAll('.org-person-card').forEach(c => {
+                      const cn = c.querySelector('.name');
+                      if (cn && cn.innerText.trim() === oldName) {
+                        c.remove();
+                        modified = true;
+                      }
+                    });
+                    if (modified) state.orgPagesHtml[pid] = tempDiv.innerHTML;
+                  }
+                }
+                injectEditControls(stage);
+                updateOrgKPIs();
+             });
+           return;
+        }
+
         const nameEl = card.querySelector('.name');
         const titleEl = card.querySelector('.title');
         const rawName = nameEl ? nameEl.innerText.replace(/\n/g, ' ') : 'Position';
