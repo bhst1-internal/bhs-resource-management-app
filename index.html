@@ -2723,8 +2723,12 @@
         ${vendorKpis.map(c => `<div class="kpi-card"><div class="bar" style="background:${c.c}"></div><div class="kpi-label">${c.l}</div><div class="kpi-value">${c.v}</div><div class="kpi-sub">${c.s}</div>${c.p}</div>`).join('')}
       </div>`;
 
-      const listSec = `${vendorKpiHtml}<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
-          <div class="table-panel" style="padding:0;border:none">
+      const listSec = `<div class="sec">
+          <div class="sec-title" id="vendor-toggle-vendor-list" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+            <span>Vendor List</span>
+            <span id="vendor-vl-icon" style="font-size:10px;">▼</span>
+          </div>
+          <div class="table-panel" id="vendor-list-wrapper" style="padding:0;border:none;display:none;margin-top:10px;">
               ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
               `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Criteria</th><th>Vendor</th><th>Start Date</th><th>End Date</th><th>Monitoring</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
           </div>
@@ -2753,7 +2757,7 @@
 
         slaSec = `<div class="sec">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div class="sec-title" style="margin:0">Service Level Agreement (SLA) &amp; Key Performance Indicator (KPI) - ${r.reportNo}</div>
+                <div class="sec-title" style="margin:0">SLA &amp; KPI Details - ${r.reportNo}</div>
                 <div style="display:flex; gap: 8px;">
                     <button class="btn btn-ghost" id="vendor-toggle-table-btn" style="padding:4px 10px;font-size:.75rem">${toggleBtnText}</button>
                     <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
@@ -2826,7 +2830,13 @@
         }
       }
 
-      container.innerHTML = `<div class="form-shell">${listSec}${slaSec}${monitorHistorySec}</div>`;
+      container.innerHTML = `<div style="background:transparent;">${vendorKpiHtml}</div>
+      <div class="form-shell">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <h3 style="margin:0;font-size:.875rem;font-weight:800">Service Level Agreement (SLA) &amp; Key Performance Indicator (KPI)</h3>
+          </div>
+          ${listSec}${slaSec}${monitorHistorySec}
+      </div>`;
 
       container.querySelectorAll('[data-act="sel-vendor"]').forEach(row => {
         row.addEventListener('click', () => {
@@ -2834,6 +2844,21 @@
           render();
         });
       });
+
+      const vlToggleBtn = container.querySelector('#vendor-toggle-vendor-list');
+      if (vlToggleBtn) {
+        vlToggleBtn.addEventListener('click', () => {
+          const wrapper = container.querySelector('#vendor-list-wrapper');
+          const icon = container.querySelector('#vendor-vl-icon');
+          if (wrapper.style.display === 'none') {
+            wrapper.style.display = 'block';
+            icon.textContent = '▲';
+          } else {
+            wrapper.style.display = 'none';
+            icon.textContent = '▼';
+          }
+        });
+      }
 
       if (r) {
         const toggleBtn = container.querySelector('#vendor-toggle-table-btn');
