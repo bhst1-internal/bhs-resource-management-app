@@ -988,10 +988,18 @@
     }
 
     function getExactTs(dateStr, oldDd, oldMm, oldYy) {
+      const cacheKey = dateStr + '_' + oldDd + '_' + oldMm + '_' + oldYy;
+      if(state._tsCache && state._tsCache[cacheKey]) return state._tsCache[cacheKey];
+      const res = getTs(dateStr) || getOldTs(oldDd, oldMm, oldYy);
+      if(!state._tsCache) state._tsCache = {};
+      state._tsCache[cacheKey] = res;
+      return res;
       return getTs(dateStr) || getOldTs(oldDd, oldMm, oldYy);
     }
 
     function getStatus(r) {
+      if (r._statusCache && !state.isDirty) return r._statusCache;
+      let statusVal = (function(){
       let clmProgress = false;
       if (r.clm) {
         if (Array.isArray(r.clm)) {
@@ -1006,6 +1014,9 @@
       }
       if (clmProgress || slaProgress) return 'progress';
       return 'open';
+      })();
+      r._statusCache = statusVal;
+      return statusVal;
     }
 
     /* =========================================================================
@@ -1206,7 +1217,6 @@
           state.activeId = String(btn.getAttribute('data-id'));
           state.tab = 'Record Input';
           render();
-        });
       });
 
       if (timelineChart) {
@@ -1993,6 +2003,7 @@
               }
             }
             chartInstance.update('none');
+          });
           }, { passive: false });
 
           canvas.addEventListener('dblclick', () => {
@@ -2677,7 +2688,6 @@
         row.addEventListener('click', () => {
           state.activeId = String(row.getAttribute('data-id'));
           render();
-        });
       });
 
       if (r) {
@@ -2903,7 +2913,6 @@
         row.addEventListener('click', () => {
           state.activeId = String(row.getAttribute('data-id'));
           render();
-        });
       });
 
       if (r) {
@@ -3020,6 +3029,164 @@
     /* =========================================================================
        MANPOWER MANAGEMENT — 6-PAGE COMPANY ORGANIZATION CHART TEMPLATES
        ========================================================================= */
+    const shiftConfigs = {
+          2: {
+            title: 'BHS Maintenance — Shift A',
+            lead: { name: 'SAMSULNAZRI ABDUL AZIZ', vacant: false },
+            mech: {
+              to: 'MOHAMAD ZAHIRUDDIN',
+              specs: [
+                { name: 'MOHD SHAHRULNIZAM', vacant: false },
+                { name: "AHMAD A'ZZUDDIN", vacant: false },
+                { name: 'SOO YUN LOY', vacant: false },
+                { name: 'HALIM', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ],
+              techs: [
+                { name: 'MOHD HAZAIDI', vacant: false },
+                { name: 'NOR FAZLI', vacant: false },
+                { name: 'MOHD HAKIMI', vacant: false },
+                { name: 'MUZAFAR', vacant: false },
+                { name: 'MOHAMAD ADAM SUHAIL', vacant: false },
+                { name: 'ADNAN', vacant: false }
+              ]
+            },
+            elec: {
+              chg: 'MOHD HARRIS',
+              to: 'JAFRI',
+              techs: [
+                { name: 'MUHAMAD IKHWAN', vacant: false },
+                { name: 'MOHAMAD SAIFUDDIN', vacant: false },
+                { name: 'MUHAMMAD AFIQ', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            scr: {
+              to: 'NORIZAN',
+              techs: [
+                { name: 'MOHD REZLAN', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            }
+          },
+          3: {
+            title: 'BHS Maintenance — Shift B',
+            lead: { name: 'ZAHIDAH ANSARI', vacant: false },
+            mech: {
+              to: 'RASHIDI',
+              specs: [
+                { name: 'ABDUL HALIM', vacant: false },
+                { name: 'MOHD WAZLI', vacant: false },
+                { name: 'RASHLAN', vacant: false },
+                { name: 'SHAHARIL', vacant: false },
+                { name: 'MOHAMMAD SYAFIQ', vacant: false }
+              ],
+              techs: [
+                { name: 'MUHAMMAD ASYRAF', vacant: false },
+                { name: 'SHIPPY ANAK NGUDAN', vacant: false },
+                { name: 'EMIRUL IZUAD', vacant: false },
+                { name: 'MOHD AZMI', vacant: false },
+                { name: 'VACANT', vacant: true },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'HASSAN',
+              to: 'MOHD AZRAF',
+              techs: [
+                { name: 'SHAHRUL EHSAN', vacant: false },
+                { name: 'WAN SYAHMI', vacant: false },
+                { name: 'MOHD SYAFIQ', vacant: false },
+                { name: 'MOHD FAZREEN', vacant: false }
+              ]
+            },
+            scr: {
+              to: 'ASREE',
+              techs: [
+                { name: 'MUHD ILTIZAM', vacant: false },
+                { name: 'MUHAMMAD NUUR', vacant: false }
+              ]
+            }
+          },
+          4: {
+            title: 'BHS Maintenance — Shift C',
+            lead: { name: 'VACANT', vacant: true },
+            mech: {
+              to: 'MOHD ZAKI',
+              specs: [
+                { name: 'EAW GUAN HUAT', vacant: false },
+                { name: 'TEONG MENG KOW', vacant: false },
+                { name: 'OMAR', vacant: false },
+                { name: 'AZIMAN', vacant: false },
+                { name: 'MUHAMAD FARID', vacant: false }
+              ],
+              techs: [
+                { name: 'MUHAMMAD AMMAR', vacant: false },
+                { name: 'MUHAMMAD KHAIRULAZMAN', vacant: false },
+                { name: 'MOHAMED TAUFIK', vacant: false },
+                { name: 'ZAHARI', vacant: false },
+                { name: 'MUHAMMAD AMINULLAH', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'AMIR HASSAN',
+              to: 'MOHD JOHARI',
+              techs: [
+                { name: 'MUHAMMAD HARITH ELYABASS', vacant: false },
+                { name: 'WAN SAIFUL AFFENDI', vacant: false },
+                { name: 'MOHAMMAD FIRKHAN', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            scr: {
+              to: 'SHARIPUNNAHAR',
+              techs: [
+                { name: 'MUHAMMAD HANIF', vacant: false },
+                { name: 'MD RAZIF', vacant: false }
+              ]
+            }
+          },
+          5: {
+            title: 'BHS Maintenance — Shift D',
+            lead: { name: 'VACANT', vacant: true },
+            mech: {
+              to: 'ZUBIR',
+              specs: [
+                { name: 'ZAINI', vacant: false },
+                { name: 'AZMI', vacant: false },
+                { name: 'RUHAIZAN', vacant: false },
+                { name: 'SANI SYAHFI', vacant: false },
+                { name: 'MOHD KHAIRIL IZHAM', vacant: false }
+              ],
+              techs: [
+                { name: 'MOHD RAFI', vacant: false },
+                { name: 'IFSAN WAHYUDI', vacant: false },
+                { name: 'MUHAMMAD SYAFIQ', vacant: false },
+                { name: 'MUHAMMAD IRFAN IHTISYAM', vacant: false },
+                { name: 'VACANT', vacant: true },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'MUHAMAD IQBAL',
+              to: 'MUHAMAD SHAMSUL SUHAINI',
+              techs: [
+                { name: 'MOHD ZARIZEE', vacant: false },
+                { name: 'RAHIM', vacant: false },
+                { name: 'MUHAMMAD NIZAM', vacant: false },
+                { name: 'MUHAMMAD YASSIN', vacant: false }
+              ]
+            },
+            scr: {
+              to: 'MOHAMAD FAUZI',
+              techs: [
+                { name: 'LUQMAN HAKIM', vacant: false },
+                { name: 'NURUL IMAN AL IZWAN', vacant: false }
+              ]
+            }
+          }
+        };
     function getOrgPageMarkup(pageId) {
       if (pageId === 1) {
         return `
@@ -3282,164 +3449,7 @@
       }
 
       if (pageId === 2 || pageId === 3 || pageId === 4 || pageId === 5) {
-        const shiftConfigs = {
-          2: {
-            title: 'BHS Maintenance — Shift A',
-            lead: { name: 'SAMSULNAZRI ABDUL AZIZ', vacant: false },
-            mech: {
-              to: 'MOHAMAD ZAHIRUDDIN',
-              specs: [
-                { name: 'MOHD SHAHRULNIZAM', vacant: false },
-                { name: "AHMAD A'ZZUDDIN", vacant: false },
-                { name: 'SOO YUN LOY', vacant: false },
-                { name: 'HALIM', vacant: false },
-                { name: 'VACANT', vacant: true }
-              ],
-              techs: [
-                { name: 'MOHD HAZAIDI', vacant: false },
-                { name: 'NOR FAZLI', vacant: false },
-                { name: 'MOHD HAKIMI', vacant: false },
-                { name: 'MUZAFAR', vacant: false },
-                { name: 'MOHAMAD ADAM SUHAIL', vacant: false },
-                { name: 'ADNAN', vacant: false }
-              ]
-            },
-            elec: {
-              chg: 'MOHD HARRIS',
-              to: 'JAFRI',
-              techs: [
-                { name: 'MUHAMAD IKHWAN', vacant: false },
-                { name: 'MOHAMAD SAIFUDDIN', vacant: false },
-                { name: 'MUHAMMAD AFIQ', vacant: false },
-                { name: 'VACANT', vacant: true }
-              ]
-            },
-            scr: {
-              to: 'NORIZAN',
-              techs: [
-                { name: 'MOHD REZLAN', vacant: false },
-                { name: 'VACANT', vacant: true }
-              ]
-            }
-          },
-          3: {
-            title: 'BHS Maintenance — Shift B',
-            lead: { name: 'ZAHIDAH ANSARI', vacant: false },
-            mech: {
-              to: 'RASHIDI',
-              specs: [
-                { name: 'ABDUL HALIM', vacant: false },
-                { name: 'MOHD WAZLI', vacant: false },
-                { name: 'RASHLAN', vacant: false },
-                { name: 'SHAHARIL', vacant: false },
-                { name: 'MOHAMMAD SYAFIQ', vacant: false }
-              ],
-              techs: [
-                { name: 'MUHAMMAD ASYRAF', vacant: false },
-                { name: 'SHIPPY ANAK NGUDAN', vacant: false },
-                { name: 'EMIRUL IZUAD', vacant: false },
-                { name: 'MOHD AZMI', vacant: false },
-                { name: 'VACANT', vacant: true },
-                { name: 'VACANT', vacant: true }
-              ]
-            },
-            elec: {
-              chg: 'HASSAN',
-              to: 'MOHD AZRAF',
-              techs: [
-                { name: 'SHAHRUL EHSAN', vacant: false },
-                { name: 'WAN SYAHMI', vacant: false },
-                { name: 'MOHD SYAFIQ', vacant: false },
-                { name: 'MOHD FAZREEN', vacant: false }
-              ]
-            },
-            scr: {
-              to: 'ASREE',
-              techs: [
-                { name: 'MUHD ILTIZAM', vacant: false },
-                { name: 'MUHAMMAD NUUR', vacant: false }
-              ]
-            }
-          },
-          4: {
-            title: 'BHS Maintenance — Shift C',
-            lead: { name: 'VACANT', vacant: true },
-            mech: {
-              to: 'MOHD ZAKI',
-              specs: [
-                { name: 'EAW GUAN HUAT', vacant: false },
-                { name: 'TEONG MENG KOW', vacant: false },
-                { name: 'OMAR', vacant: false },
-                { name: 'AZIMAN', vacant: false },
-                { name: 'MUHAMAD FARID', vacant: false }
-              ],
-              techs: [
-                { name: 'MUHAMMAD AMMAR', vacant: false },
-                { name: 'MUHAMMAD KHAIRULAZMAN', vacant: false },
-                { name: 'MOHAMED TAUFIK', vacant: false },
-                { name: 'ZAHARI', vacant: false },
-                { name: 'MUHAMMAD AMINULLAH', vacant: false },
-                { name: 'VACANT', vacant: true }
-              ]
-            },
-            elec: {
-              chg: 'AMIR HASSAN',
-              to: 'MOHD JOHARI',
-              techs: [
-                { name: 'MUHAMMAD HARITH ELYABASS', vacant: false },
-                { name: 'WAN SAIFUL AFFENDI', vacant: false },
-                { name: 'MOHAMMAD FIRKHAN', vacant: false },
-                { name: 'VACANT', vacant: true }
-              ]
-            },
-            scr: {
-              to: 'SHARIPUNNAHAR',
-              techs: [
-                { name: 'MUHAMMAD HANIF', vacant: false },
-                { name: 'MD RAZIF', vacant: false }
-              ]
-            }
-          },
-          5: {
-            title: 'BHS Maintenance — Shift D',
-            lead: { name: 'VACANT', vacant: true },
-            mech: {
-              to: 'ZUBIR',
-              specs: [
-                { name: 'ZAINI', vacant: false },
-                { name: 'AZMI', vacant: false },
-                { name: 'RUHAIZAN', vacant: false },
-                { name: 'SANI SYAHFI', vacant: false },
-                { name: 'MOHD KHAIRIL IZHAM', vacant: false }
-              ],
-              techs: [
-                { name: 'MOHD RAFI', vacant: false },
-                { name: 'IFSAN WAHYUDI', vacant: false },
-                { name: 'MUHAMMAD SYAFIQ', vacant: false },
-                { name: 'MUHAMMAD IRFAN IHTISYAM', vacant: false },
-                { name: 'VACANT', vacant: true },
-                { name: 'VACANT', vacant: true }
-              ]
-            },
-            elec: {
-              chg: 'MUHAMAD IQBAL',
-              to: 'MUHAMAD SHAMSUL SUHAINI',
-              techs: [
-                { name: 'MOHD ZARIZEE', vacant: false },
-                { name: 'RAHIM', vacant: false },
-                { name: 'MUHAMMAD NIZAM', vacant: false },
-                { name: 'MUHAMMAD YASSIN', vacant: false }
-              ]
-            },
-            scr: {
-              to: 'MOHAMAD FAUZI',
-              techs: [
-                { name: 'LUQMAN HAKIM', vacant: false },
-                { name: 'NURUL IMAN AL IZWAN', vacant: false }
-              ]
-            }
-          }
-        };
+        
 
         const cfg = shiftConfigs[pageId];
         const renderPill = (item, colorClass, roleTag, dept) => {
@@ -4256,8 +4266,11 @@
           vpEl.style.cursor = 'grabbing';
         });
 
+        let pointerMoveAF;
         vpEl.addEventListener('pointermove', e => {
           if (!isDragging) return;
+          if(pointerMoveAF) cancelAnimationFrame(pointerMoveAF);
+          pointerMoveAF = requestAnimationFrame(() => {
           const dx = e.clientX - startClientX;
           const dy = e.clientY - startClientY;
           if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
@@ -4276,6 +4289,7 @@
             panY = startPanY + dy;
             applyTransform();
           }
+          });
         });
 
         vpEl.addEventListener('pointerup', e => {
@@ -4289,8 +4303,11 @@
           }
         });
 
+        let wheelAF;
         vpEl.addEventListener('wheel', e => {
           e.preventDefault();
+          if(wheelAF) cancelAnimationFrame(wheelAF);
+          wheelAF = requestAnimationFrame(() => {
           const rect = vpEl.getBoundingClientRect();
           const mouseX = e.clientX - rect.left;
           const mouseY = e.clientY - rect.top;
@@ -4309,6 +4326,7 @@
             if (fitBtn) fitBtn.textContent = 'Fit';
           }
           applyTransform();
+          });
         }, { passive: false });
 
         vpEl.addEventListener('dblclick', () => {
@@ -4351,7 +4369,6 @@
           state.orgPage = Number(btn.getAttribute('data-org-page'));
           state.orgZoomMode = 'fit';
           render();
-        });
       });
 
       /* Zoom & Fit Controls */
@@ -4503,9 +4520,10 @@
 
     function render() {
       ROOT.innerHTML = `<div class="wrap"><div class="topbar"><div class="brand"><div class="k">KLIA - Baggage Handling System T1</div><div class="t">BHS Maintenance : Resource Management Monitoring</div></div><div class="tabs">${ALL_TABS.map(t => `<button class="tab-btn ${state.tab === t ? 'active' : ''}" data-tab="${t}">${t}</button>`).join('')}</div></div><div id="acm-content"></div></div>`;
-      ROOT.querySelectorAll('.tab-btn').forEach(b => {
-        b.addEventListener('click', async () => {
-          const targetTab = b.getAttribute('data-tab');
+      ROOT.addEventListener('click', async (e) => {
+        const b = e.target.closest('.tab-btn');
+        if (!b) return;
+        const targetTab = b.getAttribute('data-tab');
           if (state.tab === 'Record Input' && targetTab !== 'Record Input' && state.isDirty) {
             const discard = await showModal("Unsaved Changes Detected", "You have entered or modified data that has not been submitted yet.\n\nPlease click \"Submit ✔\" to record your data, or click \"Discard Data\" to abandon your recent changes.", "unsaved");
             if (!discard) return;
@@ -4513,7 +4531,6 @@
           }
           state.tab = targetTab;
           render();
-        });
       });
 
       const content = document.getElementById('acm-content');
