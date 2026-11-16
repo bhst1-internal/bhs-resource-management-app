@@ -3052,7 +3052,7 @@
               </div>
               <div class="name-badge color-manager org-person-card" data-role="manager" data-dept="Terminal 1 Management">
                 <p class="name">NURLIANA AMRAN</p>
-                <p class="title">( MANAGER - TERMINAL 1 )</p>
+                <p class="title">MANAGER<br>BAGGAGE HANDLING &amp; SCREENING MAINTENANCE</p>
               </div>
             </div>
 
@@ -3235,7 +3235,7 @@
                         <div class="avatar-ring color-chargeman"><div class="avatar-inner"><i class="fa-solid fa-bolt"></i></div></div>
                         <div class="name-badge color-chargeman org-person-card" data-role="chargeman" data-dept="Shift Floater Operations">
                           <p class="name">MOHAMAD NOOR</p>
-                          <p class="title">CHARGEMAN A4<br>SHIFT FLOATER</p>
+                          <p class="title">CHARGEMAN<br>SHIFT FLOATER</p>
                         </div>
                       </div>
                     </div>
@@ -3481,7 +3481,7 @@
               </div>
               <div class="name-badge ${cfg.lead.vacant ? '' : 'color-exec'} org-person-card" data-role="${cfg.lead.vacant ? 'vacant' : 'exec'}" data-dept="${cfg.title}" style="${cfg.lead.vacant ? 'background: #94a3b8;' : ''}">
                 <p class="name">${cfg.lead.name}</p>
-                <p class="title">EXECUTIVE ENGINEER<br>BHS MAINTENANCE</p>
+                <p class="title">EXECUTIVE ENGINEER<br>${cfg.title.replace('BHS Maintenance — ', '').toUpperCase()}</p>
               </div>
             </div>
 
@@ -3576,7 +3576,7 @@
             </div>
             <div class="s6-badge-lg color-manager org-person-card" data-role="manager" data-dept="Terminal 1 Management">
               <p class="name">NURLIANA AMRAN</p>
-              <p class="title">( MANAGER - TERMINAL 1 )</p>
+              <p class="title">MANAGER<br>BAGGAGE HANDLING &amp; SCREENING MAINTENANCE</p>
             </div>
           </div>
 
@@ -3822,7 +3822,7 @@
                   <div class="s6-avatar-md color-chargeman" style="width: 30px; height: 30px;"><div class="avatar-inner"><i class="fa-solid fa-bolt" style="font-size: 12px;"></i></div></div>
                   <div class="s6-mini-pill color-chargeman org-person-card" data-role="chargeman" data-dept="Shift Floater Operations" style="margin-top: -4px; padding: 4px 4px;">
                     <p class="name" style="font-size: 6.5px;">MOHAMAD NOOR</p>
-                    <p class="title" style="font-size: 5.5px;">CHARGEMAN A4<br>SHIFT FLOATER</p>
+                    <p class="title" style="font-size: 5.5px;">CHARGEMAN<br>SHIFT FLOATER</p>
                   </div>
                 </div>
               </div>
@@ -3833,7 +3833,7 @@
                   <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
                   <div class="s6-exec-badge color-exec org-person-card" data-role="exec" data-dept="Shift A Operations" style="width: 170px;">
                     <p class="name">SAMSULNAZRI ABDUL AZIZ</p>
-                    <p class="title">EXECUTIVE ENGINEER — SHIFT A</p>
+                    <p class="title">EXECUTIVE ENGINEER<br>SHIFT A</p>
                   </div>
                 </div>
                 <div class="s6-stem" style="height: 6px;"></div>
@@ -3889,7 +3889,7 @@
                   <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
                   <div class="s6-exec-badge color-exec org-person-card" data-role="exec" data-dept="Shift B Operations" style="width: 170px;">
                     <p class="name">ZAHIDAH ANSARI</p>
-                    <p class="title">EXECUTIVE ENGINEER — SHIFT B</p>
+                    <p class="title">EXECUTIVE ENGINEER<br>SHIFT B</p>
                   </div>
                 </div>
                 <div class="s6-stem" style="height: 6px;"></div>
@@ -3945,7 +3945,7 @@
                   <div class="s6-avatar-md color-exec" style="opacity: 0.65;"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
                   <div class="s6-exec-badge org-person-card" data-role="vacant" data-dept="Shift C Operations" style="background: #94a3b8; width: 170px;">
                     <p class="name">VACANT</p>
-                    <p class="title">EXECUTIVE ENGINEER — SHIFT C</p>
+                    <p class="title">EXECUTIVE ENGINEER<br>SHIFT C</p>
                   </div>
                 </div>
                 <div class="s6-stem" style="height: 6px;"></div>
@@ -4001,7 +4001,7 @@
                   <div class="s6-avatar-md color-exec" style="opacity: 0.65;"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
                   <div class="s6-exec-badge org-person-card" data-role="vacant" data-dept="Shift D Operations" style="background: #94a3b8; width: 170px;">
                     <p class="name">VACANT</p>
-                    <p class="title">EXECUTIVE ENGINEER — SHIFT D</p>
+                    <p class="title">EXECUTIVE ENGINEER<br>SHIFT D</p>
                   </div>
                 </div>
                 <div class="s6-stem" style="height: 6px;"></div>
@@ -4176,6 +4176,8 @@
         btn.onclick = (e) => {
           e.stopPropagation();
           state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+          const undoBtn = document.getElementById('org-undo-btn');
+          if (undoBtn) undoBtn.style.display = 'inline-flex';
           const siblings = Array.from(target.querySelectorAll('.org-person-card'));
           let template = siblings.length > 0 ? siblings[0].cloneNode(true) : null;
           if (!template) {
@@ -4251,7 +4253,7 @@
               <div style="background:#fef08a; border:1px solid #facc15; color:#854d0e; padding:6px 12px; font-weight:800; font-size:.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px; box-shadow:0 2px 6px rgba(250, 204, 21, 0.2);">
                 <span><i class="fa-solid fa-wrench"></i> EDIT MODE ACTIVE</span>
                 <div style="display:flex; gap:8px;">
-                  <button id="org-undo-btn" class="btn btn-ghost" style="padding:4px 10px; font-size:.7rem; border:1px solid #d1d5db; background:#ffffff; color:#374151;"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+                  <button id="org-undo-btn" class="btn btn-ghost" style="padding:4px 10px; font-size:.7rem; border:1px solid #d1d5db; background:#ffffff; color:#374151; display:${state.orgUndoStack && state.orgUndoStack.length > 0 ? 'inline-flex' : 'none'}; align-items:center; gap:4px;"><i class="fa-solid fa-rotate-left"></i> Undo</button>
                   <button id="org-exit-edit-btn" class="btn btn-danger" style="padding:4px 10px; font-size:.7rem;">Exit Edit Mode ✕</button>
                 </div>
               </div>
@@ -4617,6 +4619,9 @@
           stage.innerHTML = state.orgPagesHtml[state.orgPage];
           injectEditControls(stage);
           updateOrgKPIs();
+          if (state.orgUndoStack.length === 0) {
+            document.getElementById('org-undo-btn').style.display = 'none';
+          }
         });
 
       }
@@ -4639,6 +4644,9 @@
            showOrgEditModal(card, 
              (newData) => {
                 state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+                const undoBtn = document.getElementById('org-undo-btn');
+                if (undoBtn) undoBtn.style.display = 'inline-flex';
+                
                 const nEl = card.querySelector('.name');
                 const oldName = nEl ? nEl.innerText.trim() : '';
                 updateCardDOM(card, newData);
@@ -4653,6 +4661,9 @@
              }, 
              () => {
                 state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
+                const undoBtn = document.getElementById('org-undo-btn');
+                if (undoBtn) undoBtn.style.display = 'inline-flex';
+                
                 const nEl = card.querySelector('.name');
                 const oldName = nEl ? nEl.innerText.trim() : '';
                 
@@ -4690,7 +4701,7 @@
         const dept = card.getAttribute('data-dept') || curPageObj.title;
         const role = card.getAttribute('data-role') || 'staff';
         const roleLabels = {
-          manager: 'Manager (Terminal 1)',
+          manager: 'Manager',
           srexec: 'Senior Executive Engineer',
           exec: 'Executive Engineer',
           techoff: 'Technical Officer',
