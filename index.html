@@ -1217,9 +1217,27 @@
       const filledOrg = totalOrg - vacantOrg;
       const manningRate = totalOrg > 0 ? Math.round((filledOrg / totalOrg) * 100) : 0;
 
+      /* Calculate Contract Management KPIs */
+      let activeContracts = 0;
+      let expiringContracts = 0;
+      const nowMs = Date.now();
+      const ninetyDaysMs = 90 * 86400000;
+      
+      const contractRecords = filtered.filter(r => r.maintenanceType === 'Contract Management');
+      contractRecords.forEach(r => {
+        let st = getTs(r.startDate);
+        let en = getTs(r.endDate);
+        if (st && en && nowMs >= st && nowMs <= en) {
+            activeContracts++;
+            if (en - nowMs <= ninetyDaysMs) {
+                expiringContracts++;
+            }
+        }
+      });
+
       const kpiCards = [
-        { l: 'Total Contract Records', v: k.openCount, c: 'var(--crit)', s: `${k.total} total filtered`, p: k.openCount > 0 ? `<span class="kpi-pill pill-crit">Needs attention</span>` : `<span class="kpi-pill pill-ok">All clear</span>` },
-        { l: 'Critical / Urgent Pending', v: k.criticalPending, c: 'var(--warn)', s: '1 & 3 Months target, open', p: k.criticalPending > 0 ? `<span class="kpi-pill pill-warn">Prioritise</span>` : `<span class="kpi-pill pill-ok">None pending</span>` },
+        { l: 'Active Contracts', v: activeContracts, c: 'var(--accent)', s: `Currently in execution phase`, p: activeContracts > 0 ? `<span class="kpi-pill pill-ok">In Progress</span>` : `<span class="kpi-pill chip-open">None Active</span>` },
+        { l: 'Contracts Expiring Soon', v: expiringContracts, c: 'var(--warn)', s: `Expiring within next 90 days`, p: expiringContracts > 0 ? `<span class="kpi-pill pill-warn">Action Required</span>` : `<span class="kpi-pill pill-ok">All Safe</span>` },
         { l: 'Global Manning Rate', v: manningRate + '%', c: 'var(--accent-2)', s: `${filledOrg} of ${totalOrg} positions filled`, p: manningRate >= 85 ? `<span class="kpi-pill pill-ok">Healthy</span>` : `<span class="kpi-pill pill-warn">Below Target</span>`, tooltip: 'Dynamic metric pulled directly from the Manpower Master Chart.' },
         { l: 'Active Vacancies', v: vacantOrg, c: 'var(--accent)', s: `Across all teams & shifts`, p: vacantOrg > 0 ? `<span class="kpi-pill pill-warn">Needs Hiring</span>` : `<span class="kpi-pill pill-ok">Fully Staffed</span>` },
         { l: 'YTD Budget Utilisation', v: '—', c: 'var(--text-sec)', s: 'Cost & Budget Module', p: `<span class="kpi-pill chip-open" style="background:#e5e7eb;color:var(--text-sec)">Pending Setup</span>`, tooltip: 'This metric will sync once the Cost & Budget module is configured.' }
@@ -2616,6 +2634,15 @@
         if (r) state.activeId = String(r.createdAt);
       }
 
+      let totalVendors = vendors.length;
+      let needsAttentionCount = 0;
+      let totalMet = 0;
+      let totalRated = 0;
+      let activeBreaches = 0;
+      let upToDateMonitoring = 0;
+      const nowTs = Date.now();
+      const threeMonthsMs = 90 * 86400000;
+
       const rows = vendors.map(c => {
         const isActive = r && String(c.createdAt) === String(r.createdAt);
         let latestStatus = 'Pending';
@@ -2628,15 +2655,38 @@
           if (!isNaN(refDate.getTime())) {
             let limitDate = new Date(refDate);
             limitDate.setMonth(limitDate.getMonth() + 3);
-            if (Date.now() > limitDate.getTime()) needsAttention = true;
+            if (nowTs > limitDate.getTime()) needsAttention = true;
           }
         }
 
-        if (needsAttention) latestStatus = 'Need Attention';
-        else if (monitoringCount === 0) latestStatus = 'Pending';
-        else {
-          let hasNotMet = c.vendorMonitoring.some(hist => hist.metrics && hist.metrics.some(m => m.status === 'Not Met'));
-          latestStatus = hasNotMet ? 'Not Met' : 'Met';
+        if (needsAttention) {
+            needsAttentionCount++;
+            latestStatus = 'Need Attention';
+        } else if (monitoringCount === 0) {
+            latestStatus = 'Pending';
+        } else {
+          const lastHist = c.vendorMonitoring[monitoringCount - 1];
+          let hasNotMet = lastHist.metrics && lastHist.metrics.some(m => m.status === 'Not Met');
+          if (hasNotMet) {
+              needsAttentionCount++;
+              latestStatus = 'Not Met';
+          } else {
+              latestStatus = 'Met';
+          }
+          
+          if (lastHist.metrics) {
+              lastHist.metrics.forEach(m => {
+                  if (m.status === 'Met') { totalMet++; totalRated++; }
+                  else if (m.status === 'Not Met') { totalRated++; activeBreaches++; }
+              });
+          }
+        }
+        
+        if (monitoringCount > 0) {
+            let lastDate = new Date(c.vendorMonitoring[monitoringCount - 1].date).getTime();
+            if (!isNaN(lastDate) && nowTs - lastDate <= threeMonthsMs) {
+                upToDateMonitoring++;
+            }
         }
 
         let chipClass = 'chip-open';
@@ -2658,9 +2708,24 @@
         </tr>`;
       }).join('');
 
-      const listSec = `<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
+      let complianceRate = totalRated > 0 ? Math.round((totalMet / totalRated) * 100) : null;
+      let coverageRate = totalVendors > 0 ? Math.round((upToDateMonitoring / totalVendors) * 100) : 0;
+
+      const vendorKpis = [
+        { l: 'Managed Vendors', v: totalVendors, c: 'var(--accent)', s: 'Total vendor engagements', p: '' },
+        { l: 'Needs Attention', v: needsAttentionCount, c: 'var(--crit)', s: 'Overdue or failing SLAs', p: needsAttentionCount > 0 ? `<span class="kpi-pill pill-crit">Review Needed</span>` : `<span class="kpi-pill pill-ok">All Good</span>` },
+        { l: 'SLA Compliance Rate', v: complianceRate !== null ? complianceRate + '%' : '—', c: 'var(--ok)', s: 'Overall metrics met (latest)', p: complianceRate !== null ? (complianceRate >= 90 ? `<span class="kpi-pill pill-ok">Excellent</span>` : `<span class="kpi-pill pill-warn">Needs Impr.</span>`) : '' },
+        { l: 'Active SLA Breaches', v: activeBreaches, c: 'var(--warn)', s: 'Unresolved Not Met metrics', p: activeBreaches > 0 ? `<span class="kpi-pill pill-warn">Action Required</span>` : `<span class="kpi-pill pill-ok">None</span>` },
+        { l: 'Monitoring Coverage', v: coverageRate + '%', c: 'var(--accent-2)', s: 'Up-to-date in last 90 days', p: coverageRate >= 80 ? `<span class="kpi-pill pill-ok">On Track</span>` : `<span class="kpi-pill pill-crit">Lagging</span>` }
+      ];
+      
+      const vendorKpiHtml = `<div class="kpi-grid" style="margin-bottom:16px;">
+        ${vendorKpis.map(c => `<div class="kpi-card"><div class="bar" style="background:${c.c}"></div><div class="kpi-label">${c.l}</div><div class="kpi-value">${c.v}</div><div class="kpi-sub">${c.s}</div>${c.p}</div>`).join('')}
+      </div>`;
+
+      const listSec = `${vendorKpiHtml}<div class="sec" style="margin-top:20px"><div class="sec-title">Vendor List</div>
           <div class="table-panel" style="padding:0;border:none">
-              ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` :
+              ${vendors.length === 0 ? `<div class="empty-state">No Vendor Management records found. Create one in Record Input.</div>` : 
               `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Criteria</th><th>Vendor</th><th>Start Date</th><th>End Date</th><th>Monitoring</th><th>SLA Status</th></tr></thead><tbody>${rows}</tbody></table>`}
           </div>
       </div>`;
@@ -2668,19 +2733,19 @@
       let slaSec = '';
       let monitorHistorySec = '';
       if (r) {
-        if (!r.vendorSla || !Array.isArray(r.vendorSla)) r.vendorSla = Array.from({ length: 6 }, () => ({ actual: '', status: '', pic: '', remarks: '' }));
-
+        if (!r.vendorSla || !Array.isArray(r.vendorSla)) r.vendorSla = Array.from({length:6}, () => ({actual:'', status:'', pic:'', remarks:''}));
+        
         const slaHtml = SLA_METRICS.map((m, i) => {
-          const v = r.vendorSla[i] || { actual: '', status: '', pic: '', remarks: '' };
-          return `<tr>
-              <td style="font-weight:700;color:var(--ink);vertical-align:top;padding-top:8px">${m.type}</td>
-              <td style="font-weight:700;vertical-align:top;padding-top:8px">${m.name}</td>
-              <td style="font-size:10px;vertical-align:top;padding-top:8px"><b>Target:</b> ${m.target}<br><span style="color:var(--text-sec)"><b>Measure:</b> ${m.measure}</span></td>
-              <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.actual" placeholder="Enter actual results..." style="min-height:48px">${v.actual || ''}</textarea></td>
-              <td style="vertical-align:top"><select data-path="vendorSla.${i}.status" style="width:100%;padding:6px;font-size:11px"><option value=""></option><option value="Met" ${v.status === 'Met' ? 'selected' : ''}>Met</option><option value="Not Met" ${v.status === 'Not Met' ? 'selected' : ''}>Not Met</option><option value="N/A" ${v.status === 'N/A' ? 'selected' : ''}>N/A</option></select></td>
-              <td style="vertical-align:top"><input type="text" data-path="vendorSla.${i}.pic" value="${v.pic || ''}" placeholder="Name..." style="width:100%;font-size:11px;padding:6px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)"/></td>
-              <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.remarks" placeholder="Remarks..." style="min-height:48px">${v.remarks || ''}</textarea></td>
-          </tr>`;
+            const v = r.vendorSla[i] || {actual:'', status:'', pic:'', remarks:''};
+            return `<tr>
+                <td style="font-weight:700;color:var(--ink);vertical-align:top;padding-top:8px">${m.type}</td>
+                <td style="font-weight:700;vertical-align:top;padding-top:8px">${m.name}</td>
+                <td style="font-size:10px;vertical-align:top;padding-top:8px"><b>Target:</b> ${m.target}<br><span style="color:var(--text-sec)"><b>Measure:</b> ${m.measure}</span></td>
+                <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.actual" placeholder="Enter actual results..." style="min-height:48px">${v.actual || ''}</textarea></td>
+                <td style="vertical-align:top"><select data-path="vendorSla.${i}.status" style="width:100%;padding:6px;font-size:11px"><option value=""></option><option value="Met" ${v.status === 'Met' ? 'selected' : ''}>Met</option><option value="Not Met" ${v.status === 'Not Met' ? 'selected' : ''}>Not Met</option><option value="N/A" ${v.status === 'N/A' ? 'selected' : ''}>N/A</option></select></td>
+                <td style="vertical-align:top"><input type="text" data-path="vendorSla.${i}.pic" value="${v.pic || ''}" placeholder="Name..." style="width:100%;font-size:11px;padding:6px;border:1px solid var(--line);border-radius:7px;background:var(--input-bg)"/></td>
+                <td style="vertical-align:top"><textarea data-path="vendorSla.${i}.remarks" placeholder="Remarks..." style="min-height:48px">${v.remarks || ''}</textarea></td>
+            </tr>`;
         }).join('');
 
         const tableDisplay = state.vendorSlaTableVisible ? 'table' : 'none';
