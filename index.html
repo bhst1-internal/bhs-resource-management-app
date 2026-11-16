@@ -4063,29 +4063,37 @@
     /* Org Chart Edit Mode Helpers */
     function showOrgEditModal(card, onSave, onRemove) {
       let overlay = document.getElementById('org-edit-modal');
+      const rootEl = document.getElementById('acm-root');
       if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'org-edit-modal';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(17,24,39,.7); z-index:999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);';
         overlay.innerHTML = `
-          <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
-            <div style="background:var(--paper); border-radius:12px; padding:24px; width:380px; box-shadow:0 20px 40px rgba(0,0,0,0.3);">
-              <h3 style="margin:0 0 16px 0; font-size:1.1rem; color:var(--ink);">Edit Personnel</h3>
-              <div style="display:flex; flex-direction:column; gap:12px;">
-                <label class="f">Name <input type="text" id="oem-name"/></label>
-                <label class="f">Title <input type="text" id="oem-title"/></label>
-                <label class="chk" style="margin-top:4px;"><input type="checkbox" id="oem-vacant"/> Position is Vacant</label>
-                <div style="display:flex; justify-content:space-between; margin-top:20px;">
-                  <button class="btn btn-danger" id="oem-remove">Remove</button>
-                  <div style="display:flex; gap:8px;">
-                    <button class="btn btn-ghost" id="oem-cancel">Cancel</button>
-                    <button class="btn btn-primary" id="oem-save">Save Changes</button>
-                  </div>
+          <div style="background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:22px 24px; width:90%; max-width:420px; box-shadow:0 12px 32px rgba(0,0,0,.18);">
+            <h3 style="margin:0 0 16px 0; font-size:1rem; font-weight:800; color:var(--ink);">Edit Personnel</h3>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
+                Name 
+                <input type="text" id="oem-name" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
+                Title 
+                <input type="text" id="oem-title" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; font-weight:600; color:var(--ink-light); cursor:pointer; margin-top:4px;">
+                <input type="checkbox" id="oem-vacant" style="width:16px; height:16px; accent-color:var(--accent);"/> Position is Vacant
+              </label>
+              <div style="display:flex; justify-content:space-between; margin-top:16px; align-items:center;">
+                <button class="btn btn-danger" id="oem-remove">Remove</button>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-ghost" id="oem-cancel">Cancel</button>
+                  <button class="btn btn-primary" id="oem-save">Save Changes</button>
                 </div>
               </div>
             </div>
           </div>
         `;
-        document.body.appendChild(overlay);
+        rootEl.appendChild(overlay);
       }
       
       const nEl = card.querySelector('.name');
@@ -4243,7 +4251,6 @@
               <div style="background:#fef08a; border:1px solid #facc15; color:#854d0e; padding:6px 12px; font-weight:800; font-size:.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px; box-shadow:0 2px 6px rgba(250, 204, 21, 0.2);">
                 <span><i class="fa-solid fa-wrench"></i> EDIT MODE ACTIVE</span>
                 <div style="display:flex; gap:8px;">
-                  <button id="org-add-section-btn" class="btn btn-primary" style="padding:4px 10px; font-size:.7rem;"><i class="fa-solid fa-plus"></i> Add Sub-Section</button>
                   <button id="org-undo-btn" class="btn btn-ghost" style="padding:4px 10px; font-size:.7rem; border:1px solid #d1d5db; background:#ffffff; color:#374151;"><i class="fa-solid fa-rotate-left"></i> Undo</button>
                   <button id="org-exit-edit-btn" class="btn btn-danger" style="padding:4px 10px; font-size:.7rem;">Exit Edit Mode ✕</button>
                 </div>
@@ -4612,52 +4619,6 @@
           updateOrgKPIs();
         });
 
-        container.querySelector('#org-add-section-btn').addEventListener('click', async () => {
-          const secName = await showModal("Add Sub-Section", "Enter the name for the new sub-section branch:", "prompt-text", "");
-          if (!secName) return;
-          
-          state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
-          const stage = document.getElementById('org-scale-stage');
-          
-          let targetContainer = null;
-          if (state.orgPage === 6) {
-            const brackets = Array.from(stage.querySelectorAll('.s6-lower-bracket'));
-            if (brackets.length > 0) targetContainer = brackets[brackets.length - 1].nextElementSibling;
-          } else {
-            const flexes = Array.from(stage.querySelectorAll('div[style*="display: flex"]'));
-            targetContainer = flexes.find(el => el.children.length >= 2 && el.clientWidth > 500);
-          }
-          
-          if (targetContainer) {
-            const lastChild = targetContainer.lastElementChild;
-            if (lastChild) {
-              const clone = lastChild.cloneNode(true);
-              clone.querySelectorAll('.name').forEach(el => el.textContent = 'VACANT');
-              clone.querySelectorAll('.title').forEach(el => el.textContent = 'NEW ROLE');
-              clone.querySelectorAll('.org-person-card').forEach(c => {
-                 c.style.background = '#94a3b8';
-                 c.className = c.className.replace(/color-\w+/g, '').trim();
-                 c.setAttribute('data-role', 'vacant');
-              });
-              const hdr = clone.querySelector('.s6-disc-hdr, h3');
-              if (hdr) hdr.textContent = secName.toUpperCase();
-              targetContainer.appendChild(clone);
-              
-              const prevBracket = targetContainer.previousElementSibling;
-              if (prevBracket && prevBracket.className.includes('bracket')) {
-                if (prevBracket.className === 's6-lower-bracket') {
-                  const drop = document.createElement('div');
-                  drop.className = 's6-lower-drop';
-                  prevBracket.appendChild(drop);
-                }
-              }
-            }
-          }
-          removeEditControls(stage);
-          state.orgPagesHtml[state.orgPage] = stage.innerHTML;
-          injectEditControls(stage);
-          updateOrgKPIs();
-        });
       }
 
       if (state.orgEditMode) {
