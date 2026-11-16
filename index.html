@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <style>
+  <style>
     /* =========================================================================
        CORE APPLICATION & DASHBOARD STYLES
        ========================================================================= */
@@ -290,9 +290,7 @@
       top: 0;
       left: 0;
       width: 1280px;
-      min-height: 720px;
-      height: max-content;
-      padding-bottom: 40px;
+      height: 720px;
       transform-origin: 0 0;
       /* Removed will-change: transform; to keep vector text razor sharp when zooming */
     }
@@ -300,9 +298,7 @@
     /* Org Chart Canvas (1280 x 720 exact proportional design) */
     .org-canvas {
       width: 1280px;
-      min-height: 720px;
-      height: max-content;
-      padding-bottom: 60px;
+      height: 720px;
       margin: 0 auto;
       overflow: hidden;
       box-sizing: border-box;
@@ -700,10 +696,6 @@
       filter: brightness(1.06);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25) !important;
     }
-    .org-person-card.edit-active:hover {
-      outline: 2px dashed #f59e0b;
-      outline-offset: 2px;
-    }
     .org-dimmed {
       opacity: 0.22 !important;
     }
@@ -791,34 +783,30 @@
         if (!overlay) {
           overlay = document.createElement('div');
           overlay.id = 'acm-modal-overlay';
-        overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="text" id="acm-modal-input" placeholder="" autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
-      }
-      if (overlay.parentNode !== ROOT) ROOT.appendChild(overlay);
-      const titleEl = overlay.querySelector('#acm-modal-title');
-      const msgEl = overlay.querySelector('#acm-modal-msg');
-      const inputEl = overlay.querySelector('#acm-modal-input');
-      const actionsEl = overlay.querySelector('#acm-modal-actions');
-      titleEl.textContent = title;
-      msgEl.textContent = msg;
+          overlay.innerHTML = `<div id="acm-modal-box"><div id="acm-modal-title"></div><div id="acm-modal-msg"></div><input type="text" id="acm-modal-input" placeholder="" autocomplete="new-password"/><div id="acm-modal-actions"></div></div>`;
+        }
+        if (overlay.parentNode !== ROOT) ROOT.appendChild(overlay);
+        const titleEl = overlay.querySelector('#acm-modal-title');
+        const msgEl = overlay.querySelector('#acm-modal-msg');
+        const inputEl = overlay.querySelector('#acm-modal-input');
+        const actionsEl = overlay.querySelector('#acm-modal-actions');
+        titleEl.textContent = title;
+        msgEl.textContent = msg;
 
-      if (type === 'prompt') {
-        inputEl.type = 'password';
-        inputEl.placeholder = 'Enter password...';
-        inputEl.style.display = 'block';
-      } else if (type === 'prompt-text') {
-        inputEl.type = 'text';
-        inputEl.placeholder = 'Enter text...';
-        inputEl.style.display = 'block';
-      } else if (type === 'prompt-date') {
-        inputEl.type = 'date';
-        inputEl.placeholder = '';
-        inputEl.style.display = 'block';
-      } else {
-        inputEl.style.display = 'none';
-      }
+        if (type === 'prompt') {
+          inputEl.type = 'password';
+          inputEl.placeholder = 'Enter password...';
+          inputEl.style.display = 'block';
+        } else if (type === 'prompt-date') {
+          inputEl.type = 'date';
+          inputEl.placeholder = '';
+          inputEl.style.display = 'block';
+        } else {
+          inputEl.style.display = 'none';
+        }
 
-      inputEl.value = '';
-      actionsEl.innerHTML = '';
+        inputEl.value = '';
+        actionsEl.innerHTML = '';
         function close() { overlay.classList.remove('active'); }
         const createBtn = (cls, text, cb) => {
           const b = document.createElement('button');
@@ -833,29 +821,29 @@
         } else if (type === 'confirm') {
           actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
           actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Delete', () => resolve(true)));
-      } else if (type === 'confirm-edit') {
-        actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
-        actionsEl.appendChild(createBtn('btn btn-primary', 'Edit', () => resolve(true)));
-      } else if (type === 'prompt' || type === 'prompt-date' || type === 'prompt-text') {
-        actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
-        const handleSub = () => { close(); resolve(inputEl.value); };
-        const ob = createBtn('btn btn-primary', 'Confirm', handleSub);
-        actionsEl.appendChild(ob);
-        inputEl.onkeydown = e => { if (e.key === 'Enter') handleSub(); };
-      } else if (type === 'unsaved') {
+        } else if (type === 'confirm-edit') {
+          actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(false)));
+          actionsEl.appendChild(createBtn('btn btn-primary', 'Edit', () => resolve(true)));
+        } else if (type === 'prompt' || type === 'prompt-date') {
+          actionsEl.appendChild(createBtn('btn btn-ghost', 'Cancel', () => resolve(null)));
+          const handleSub = () => { close(); resolve(inputEl.value); };
+          const ob = createBtn('btn btn-primary', 'Confirm', handleSub);
+          actionsEl.appendChild(ob);
+          inputEl.onkeydown = e => { if (e.key === 'Enter') handleSub(); };
+        } else if (type === 'unsaved') {
           actionsEl.appendChild(createBtn('btn btn-primary', 'Cancel & Keep Editing', () => resolve(false)));
           actionsEl.appendChild(createBtn('btn btn-solid-danger', 'Discard Data', () => resolve(true)));
         }
 
         void overlay.offsetWidth;
-      overlay.classList.add('active');
-      if (type === 'prompt' || type === 'prompt-date' || type === 'prompt-text') {
-        setTimeout(() => {
-          if (type === 'prompt-date' && typeof extraArg === 'string') inputEl.value = extraArg;
-          inputEl.focus();
-        }, 50);
-      }
-    });
+        overlay.classList.add('active');
+        if (type === 'prompt' || type === 'prompt-date') {
+          setTimeout(() => {
+            if (type === 'prompt-date' && typeof extraArg === 'string') inputEl.value = extraArg;
+            inputEl.focus();
+          }, 50);
+        }
+      });
     }
 
     /* =========================================================================
@@ -910,16 +898,8 @@
           return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         };
         let validData = [];
-        let foundOrgData = false;
-        
         googleData.forEach(g => {
-          if (g.isOrgData) {
-            state.orgData = g.data;
-            foundOrgData = true;
-            return;
-          }
           if (!g.createdAt || String(g.createdAt).trim() === '') return;
-          
           g.happeningDate = cleanDate(g.happeningDate);
           g.ecd = cleanDate(g.ecd);
           g.startDate = cleanDate(g.startDate);
@@ -943,10 +923,6 @@
           validData.push(g);
         });
 
-        if (!foundOrgData && !state.orgData) {
-          state.orgData = getDefaultOrgData();
-        }
-
         const drafts = state.records.filter(r => r.isDraft);
         const cloudIds = new Set(validData.map(g => String(g.createdAt)));
         const localOffline = state.records.filter(r => !r.isDraft && !cloudIds.has(String(r.createdAt)));
@@ -966,13 +942,6 @@
 
     async function saveRecords() {
       try { if (window.storage) await window.storage.set(STORE_KEY, JSON.stringify(state.records), false); } catch (e) {}
-    }
-    
-    async function saveOrgDataToCloud() {
-      const payload = { isOrgData: true, data: state.orgData, createdAt: 1, reportNo: 'ORG-CHART', maintenanceType: 'Org Chart Config' };
-      try {
-        await fetch(WEB_APP_URL, { method: 'POST', mode: 'no-cors', body: new URLSearchParams({ payload: JSON.stringify(payload) }) });
-      } catch(e) {}
     }
 
     function revertActiveRecord() {
@@ -3051,184 +3020,7 @@
     /* =========================================================================
        MANPOWER MANAGEMENT — 6-PAGE COMPANY ORGANIZATION CHART TEMPLATES
        ========================================================================= */
-       
-    function getDefaultOrgData() {
-      return {
-        manager: { name: 'NURLIANA AMRAN', title: 'MANAGER - TERMINAL 1', role: 'manager' },
-        admin: { name: 'VACANT', title: 'ADMIN', role: 'vacant' },
-        resMgr: { name: 'VACANT', title: 'SENIOR EXECUTIVE - ENGINEER<br>RESOURCE MANAGEMENT', role: 'vacant' },
-        procExec: { name: 'EYLIA NAZIRA', title: 'EXECUTIVE ENGINEER<br>PROCUREMENT & SUPPORT', role: 'exec' },
-        procTo: { name: 'MUHAMMAD AMIRUL', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        safeExec: { name: 'QABSHA NORDIANAH', title: 'EXECUTIVE ENGINEER<br>SAFETY & COMPLIANCE', role: 'exec' },
-        safeTo: { name: 'HAZIM MUSLIHIN', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        invExec: { name: 'NUR HAFIZAH', title: 'EXECUTIVE ENGINEER<br>INVENTORY & ASSET', role: 'exec' },
-        invTo: { name: 'M. AZAMMUDIN', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        invSpecs: [ { name: 'CHANG CHAK FOO', role: 'specialist' }, { name: 'TAI MUN KON', role: 'specialist' }, { name: 'M. ELMY ZAKWAN', role: 'specialist' }, { name: 'DAUD SETOR', role: 'specialist' }, { name: 'MOHD HANIF', role: 'specialist' }, { name: 'VACANT', role: 'vacant' } ],
-        
-        bhsMgr: { name: 'MOHD FAIRUS SAFUAN', title: 'SENIOR EXECUTIVE - ENGINEER<br>BHS MAINTENANCE', role: 'srexec' },
-        elecPlanExec: { name: 'NUR ANISAH AZIERA', title: 'EXECUTIVE ENGINEER<br>ELECTRICAL PLANNER', role: 'exec' },
-        elecPlanTo: { name: 'ZARIZAL ROSLI', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        elecPlanTechs: [ { name: 'VACANT', role: 'vacant' }, { name: 'VACANT', role: 'vacant' } ],
-        mechPlanExec: { name: 'MOHAMAD FARIZ', title: 'EXECUTIVE ENGINEER<br>MECHANICAL PLANNER', role: 'exec' },
-        mechPlanTo: { name: 'MOHD AINUDDIN', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        mechPlanTechs: [ { name: 'HASHIM ABD AZIZ', role: 'technician' }, { name: 'MOHD SHAFRI', role: 'technician' }, { name: 'VACANT', role: 'vacant' }, { name: 'VACANT', role: 'vacant' } ],
-        shiftFloaterExec: { name: 'ZULKIPLE JAMAL', title: 'EXECUTIVE ENGINEER<br>SHIFT FLOATER', role: 'exec' },
-        shiftFloaterChg: { name: 'MOHAMAD NOOR', title: 'CHARGEMAN A4<br>SHIFT FLOATER', role: 'techoff' },
-
-        scrMgr: { name: 'VACANT', title: 'SENIOR EXECUTIVE - ENGINEER<br>SCREENING SYSTEM (PSS/ILHBS)', role: 'vacant' },
-        pssExec: { name: 'NURULAIN ABD RAHMAN', title: 'EXECUTIVE ENGINEER<br>PAX SCREENING (PSS)', role: 'exec' },
-        pssTo: { name: 'AZMAN HELMY', title: 'TECHNICAL OFFICER', role: 'techoff' },
-        pssTechs: [ { name: 'AZRIN GHAZALI', role: 'technician' }, { name: 'M. AMIR HAMZAH', role: 'technician' } ],
-        ilhbsExec: { name: 'ABDULLAH HARIP', title: 'EXECUTIVE ENGINEER<br>HOLD BAGGAGE (ILHBS)', role: 'exec' },
-
-        shifts: {
-          'A': { title: 'BHS Maintenance — Shift A', lead: { name: 'SAMSULNAZRI ABDUL AZIZ', role: 'exec', title: 'EXECUTIVE ENGINEER — SHIFT A' }, mechTo: { name: 'MOHAMAD ZAHIRUDDIN', role: 'techoff', title: 'TECHNICAL OFFICER' }, mechSpecs: [ { name: 'MOHD SHAHRULNIZAM', role: 'specialist' }, { name: "AHMAD A'ZZUDDIN", role: 'specialist' }, { name: 'SOO YUN LOY', role: 'specialist' }, { name: 'HALIM', role: 'specialist' }, { name: 'VACANT', role: 'vacant' } ], mechTechs: [ { name: 'MOHD HAZAIDI', role: 'technician' }, { name: 'NOR FAZLI', role: 'technician' }, { name: 'MOHD HAKIMI', role: 'technician' }, { name: 'MUZAFAR', role: 'technician' }, { name: 'MOHAMAD ADAM SUHAIL', role: 'technician' }, { name: 'ADNAN', role: 'technician' } ], elecChg: { name: 'MOHD HARRIS', role: 'techoff', title: 'CHARGEMAN' }, elecTo: { name: 'JAFRI', role: 'techoff', title: 'TECHNICAL OFFICER' }, elecTechs: [ { name: 'MUHAMMAD IKHWAN', role: 'technician' }, { name: 'MOHAMAD SAIFUDDIN', role: 'technician' }, { name: 'MUHAMMAD AFIQ', role: 'technician' }, { name: 'VACANT', role: 'vacant' } ], scrTo: { name: 'NORIZAN', role: 'techoff', title: 'TECHNICAL OFFICER' }, scrTechs: [ { name: 'MOHD REZLAN', role: 'technician' }, { name: 'VACANT', role: 'vacant' } ] },
-          'B': { title: 'BHS Maintenance — Shift B', lead: { name: 'ZAHIDAH ANSARI', role: 'exec', title: 'EXECUTIVE ENGINEER — SHIFT B' }, mechTo: { name: 'RASHIDI', role: 'techoff', title: 'TECHNICAL OFFICER' }, mechSpecs: [ { name: 'ABDUL HALIM', role: 'specialist' }, { name: 'MOHD WAZLI', role: 'specialist' }, { name: 'RASHLAN', role: 'specialist' }, { name: 'SHAHARIL', role: 'specialist' }, { name: 'MOHAMMAD SYAFIQ', role: 'specialist' } ], mechTechs: [ { name: 'MUHAMMAD ASYRAF', role: 'technician' }, { name: 'SHIPPY ANAK NGUDAN', role: 'technician' }, { name: 'EMIRUL IZUAD', role: 'technician' }, { name: 'MOHD AZMI', role: 'technician' }, { name: 'VACANT', role: 'vacant' }, { name: 'VACANT', role: 'vacant' } ], elecChg: { name: 'HASSAN', role: 'techoff', title: 'CHARGEMAN' }, elecTo: { name: 'MOHD AZRAF', role: 'techoff', title: 'TECHNICAL OFFICER' }, elecTechs: [ { name: 'SHAHRUL EHSAN', role: 'technician' }, { name: 'WAN SYAHMI', role: 'technician' }, { name: 'MOHD SYAFIQ', role: 'technician' }, { name: 'MOHD FAZREEN', role: 'technician' } ], scrTo: { name: 'ASREE', role: 'techoff', title: 'TECHNICAL OFFICER' }, scrTechs: [ { name: 'MUHD ILTIZAM', role: 'technician' }, { name: 'MUHAMMAD NUUR', role: 'technician' } ] },
-          'C': { title: 'BHS Maintenance — Shift C', lead: { name: 'VACANT', role: 'vacant', title: 'EXECUTIVE ENGINEER — SHIFT C' }, mechTo: { name: 'MOHD ZAKI', role: 'techoff', title: 'TECHNICAL OFFICER' }, mechSpecs: [ { name: 'EAW GUAN HUAT', role: 'specialist' }, { name: 'TEONG MENG KOW', role: 'specialist' }, { name: 'OMAR', role: 'specialist' }, { name: 'AZIMAN', role: 'specialist' }, { name: 'MUHAMAD FARID', role: 'specialist' } ], mechTechs: [ { name: 'MUHAMMAD AMMAR', role: 'technician' }, { name: 'MUHAMMAD KHAIRULAZMAN', role: 'technician' }, { name: 'MOHAMED TAUFIK', role: 'technician' }, { name: 'ZAHARI', role: 'technician' }, { name: 'MUHAMMAD AMINULLAH', role: 'technician' }, { name: 'VACANT', role: 'vacant' } ], elecChg: { name: 'AMIR HASSAN', role: 'techoff', title: 'CHARGEMAN' }, elecTo: { name: 'MOHD JOHARI', role: 'techoff', title: 'TECHNICAL OFFICER' }, elecTechs: [ { name: 'MUHAMMAD HARITH ELYABASS', role: 'technician' }, { name: 'WAN SAIFUL AFFENDI', role: 'technician' }, { name: 'MOHAMMAD FIRKHAN', role: 'technician' }, { name: 'VACANT', role: 'vacant' } ], scrTo: { name: 'SHARIPUNNAHAR', role: 'techoff', title: 'TECHNICAL OFFICER' }, scrTechs: [ { name: 'MUHAMMAD HANIF', role: 'technician' }, { name: 'MD RAZIF', role: 'technician' } ] },
-          'D': { title: 'BHS Maintenance — Shift D', lead: { name: 'VACANT', role: 'vacant', title: 'EXECUTIVE ENGINEER — SHIFT D' }, mechTo: { name: 'ZUBIR', role: 'techoff', title: 'TECHNICAL OFFICER' }, mechSpecs: [ { name: 'ZAINI', role: 'specialist' }, { name: 'AZMI', role: 'specialist' }, { name: 'RUHAIZAN', role: 'specialist' }, { name: 'SANI SYAHFI', role: 'specialist' }, { name: 'MOHD KHAIRIL IZHAM', role: 'specialist' } ], mechTechs: [ { name: 'MOHD RAFI', role: 'technician' }, { name: 'IFSAN WAHYUDI', role: 'technician' }, { name: 'MUHAMMAD SYAFIQ', role: 'technician' }, { name: 'MUHAMMAD IRFAN IHTISYAM', role: 'technician' }, { name: 'VACANT', role: 'vacant' }, { name: 'VACANT', role: 'vacant' } ], elecChg: { name: 'MUHAMAD IQBAL', role: 'techoff', title: 'CHARGEMAN' }, elecTo: { name: 'M. SHAMSUL SUHAINI', role: 'techoff', title: 'TECHNICAL OFFICER' }, elecTechs: [ { name: 'MOHD ZARIZEE', role: 'technician' }, { name: 'RAHIM', role: 'technician' }, { name: 'MUHAMMAD NIZAM', role: 'technician' }, { name: 'MUHAMMAD YASSIN', role: 'technician' } ], scrTo: { name: 'MOHAMAD FAUZI', role: 'techoff', title: 'TECHNICAL OFFICER' }, scrTechs: [ { name: 'LUQMAN HAKIM', role: 'technician' }, { name: 'NURUL IMAN AL IZWAN', role: 'technician' } ] }
-        }
-      };
-    }
-    
-    function getByPath(obj, path) {
-      return path.split('.').reduce((acc, part) => acc && acc[part], obj);
-    }
-    
-    function renderNode(path, icon, dept, extraOp = '') {
-      const obj = getByPath(state.orgData, path) || {name:'-', title:'-', role:'vacant'};
-      const isV = obj.role === 'vacant';
-      const bg = isV ? 'background: #94a3b8;' : '';
-      const cls = isV ? '' : `color-${obj.role}`;
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      return `
-        <div class="tree-node">
-          <div class="avatar-ring ${cls}" style="${bg} ${isV ? 'opacity:0.6;' : ''} ${extraOp}">
-            <div class="avatar-inner"><i class="fa-solid ${icon}"></i></div>
-          </div>
-          <div class="name-badge ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bg}">
-            <p class="name">${obj.name}</p>
-            <p class="title">${obj.title || ''}</p>
-          </div>
-        </div>`;
-    }
-    
-    function renderS6Lg(path, icon, dept, extraOp = '') {
-      const obj = getByPath(state.orgData, path) || {name:'-', title:'-', role:'vacant'};
-      const isV = obj.role === 'vacant';
-      const bg = isV ? 'background: #94a3b8;' : '';
-      const cls = isV ? '' : `color-${obj.role}`;
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      return `
-        <div class="s6-node">
-          <div class="s6-avatar-lg ${cls}" style="${bg} ${isV ? 'opacity:0.65;' : ''} ${extraOp}">
-            <div class="avatar-inner"><i class="fa-solid ${icon}"></i></div>
-          </div>
-          <div class="s6-badge-lg ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bg}">
-            <p class="name">${obj.name}</p>
-            <p class="title">${obj.title || ''}</p>
-          </div>
-        </div>`;
-    }
-
-    function renderS6Md(path, icon, dept, extraOp = '') {
-      const obj = getByPath(state.orgData, path) || {name:'-', title:'-', role:'vacant'};
-      const isV = obj.role === 'vacant';
-      const bg = isV ? 'background: #94a3b8;' : '';
-      const cls = isV ? '' : `color-${obj.role}`;
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      return `
-        <div class="s6-node">
-          <div class="s6-avatar-md ${cls}" style="${bg} ${isV ? 'opacity:0.65;' : ''} ${extraOp}">
-            <div class="avatar-inner"><i class="fa-solid ${icon}"></i></div>
-          </div>
-          <div class="s6-badge-md ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bg}; min-height:26px;">
-            <p class="name">${obj.name}</p>
-            <p class="title">${obj.title || ''}</p>
-          </div>
-        </div>`;
-    }
-
-    function renderS6Exec(path, icon, dept) {
-      const obj = getByPath(state.orgData, path) || {name:'-', title:'-', role:'vacant'};
-      const isV = obj.role === 'vacant';
-      const bg = isV ? 'background: #94a3b8;' : '';
-      const cls = isV ? '' : `color-${obj.role}`;
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      return `
-        <div class="s6-exec-node">
-          <div class="s6-avatar-md ${cls}" style="${bg} ${isV ? 'opacity:0.65;' : ''}"><div class="avatar-inner"><i class="fa-solid ${icon}"></i></div></div>
-          <div class="s6-exec-badge ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bg}; width: 170px;">
-            <p class="name">${obj.name}</p>
-            <p class="title">${obj.title || ''}</p>
-          </div>
-        </div>`;
-    }
-
-    function renderPill(path, obj, dept, isS6 = false, extraStyle = '') {
-      const cls = obj.role === 'vacant' ? '' : `color-${obj.role}`;
-      const bgStyle = obj.role === 'vacant' ? 'background: #94a3b8;' : '';
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      const baseClass = isS6 ? 's6-mini-pill' : 'name-badge badge-simple compact-node';
-      const padding = isS6 ? '' : 'margin: 0; width: 145px;';
-      const nameClass = isS6 ? 'name' : 'name';
-      
-      let titleHtml = '';
-      if (!isS6) {
-          titleHtml = `<br>${obj.role === 'vacant' ? (path.includes('Specs') ? 'SPECIALIST' : 'TECHNICIAN') : obj.role}`;
-      }
-
-      return `<div class="${baseClass} ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bgStyle} ${padding} ${extraStyle}"><p class="${nameClass}">${obj.name}${titleHtml}</p></div>`;
-    }
-    
-    function renderS6Pill(path, obj, dept, extLabel = '') {
-      const cls = obj.role === 'vacant' ? '' : `color-${obj.role}`;
-      const bgStyle = obj.role === 'vacant' ? 'background: #94a3b8;' : '';
-      const editCls = state.orgEditMode ? 'edit-active' : '';
-      let dispName = obj.name;
-      if (extLabel && obj.role === 'vacant') dispName += ` (${extLabel})`;
-      else if (extLabel && obj.role !== 'vacant' && extLabel === 'TECH.') dispName += ` (${extLabel})`;
-      
-      return `<div class="s6-pill-sm ${cls} org-person-card ${editCls}" data-edit-path="${path}" data-role="${obj.role}" data-dept="${dept}" style="${bgStyle}"><p class="name">${dispName}</p></div>`;
-    }
-    
-    function renderAddBtn(path, isS6 = false) {
-      if (!state.orgEditMode) return '';
-      const pad = isS6 ? '2px' : '4px';
-      const mt = isS6 ? '2px' : '4px';
-      return `<button class="btn btn-ghost org-add-btn" data-add-path="${path}" style="padding: ${pad}; font-size: 7px; width: 100%; border: 1px dashed var(--line-dark); margin-top: ${mt};">+ Add</button>`;
-    }
-
     function getOrgPageMarkup(pageId) {
-      if (!state.orgData) state.orgData = getDefaultOrgData();
-      const d = state.orgData;
-      
-      const customBranchesHtml = (d.customBranches && d.customBranches.length > 0) ? `
-        <div style="width:100%; display:flex; flex-direction:column; align-items:center; margin-top:40px; border-top:2px dashed #cbd5e1; padding-top:24px;">
-          <div style="background:#1e293b; color:#fff; padding:6px 16px; border-radius:6px; font-size:12px; font-weight:bold; letter-spacing:1px; margin-bottom:24px;">ADDITIONAL SUB-SECTIONS</div>
-          <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:24px; width:100%;">
-            ${d.customBranches.map((cb, idx) => `
-              <div style="display:flex; flex-direction:column; align-items:center; width:220px;">
-                ${pageId === 6 
-                  ? renderS6Exec(`customBranches.${idx}.lead`, 'fa-users', cb.title) 
-                  : renderNode(`customBranches.${idx}.lead`, 'fa-users', cb.title)
-                }
-                <div class="${pageId === 6 ? 's6-stem' : 'stem'}" style="height: 10px;"></div>
-                <div class="${pageId === 6 ? 's6-shift-card' : ''}" style="${pageId !== 6 ? 'background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:12px; width:100%; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:flex; flex-direction:column; align-items:center;' : 'width:100%;'}">
-                  <div class="${pageId === 6 ? 's6-disc-hdr' : ''}" style="${pageId !== 6 ? 'font-size:11px; font-weight:800; color:#0f172a; margin-bottom:12px; text-transform:uppercase; text-align:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px; width:100%;' : ''}">${cb.title}</div>
-                  <div style="display:flex; flex-direction:column; gap:${pageId === 6 ? '2px' : '6px'}; width:100%; align-items:center;">
-                    ${cb.members.map((m, mIdx) => pageId === 6 
-                      ? renderS6Pill(`customBranches.${idx}.members.${mIdx}`, m, cb.title)
-                      : renderPill(`customBranches.${idx}.members.${mIdx}`, m, cb.title, false, 'width:100%;')
-                    ).join('')}
-                    ${renderAddBtn(`customBranches.${idx}.members`, pageId === 6)}
-                  </div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : '';
-      
       if (pageId === 1) {
         return `
         <div class="org-canvas" id="org-canvas-active">
@@ -3238,11 +3030,19 @@
           </div>
 
           <div class="tree-wrapper" style="margin-top: 0; transform: scale(0.9); transform-origin: top center;">
-            ${renderNode('manager', 'fa-user-tie', 'Terminal 1 Management')}
+            <div class="tree-node">
+              <div class="avatar-ring color-manager">
+                <div class="avatar-inner"><i class="fa-solid fa-user-tie"></i></div>
+              </div>
+              <div class="name-badge color-manager org-person-card" data-role="manager" data-dept="Terminal 1 Management">
+                <p class="name">NURLIANA AMRAN</p>
+                <p class="title">( MANAGER - TERMINAL 1 )</p>
+              </div>
+            </div>
 
             <div class="stem" style="height: 10px;"></div>
-            <div class="name-badge badge-simple org-person-card ${state.orgEditMode ? 'edit-active' : ''}" data-edit-path="admin" data-role="${d.admin.role}" data-dept="Administration" style="${d.admin.role === 'vacant' ? 'background: #94a3b8;' : `color-${d.admin.role}`} padding: 4px 12px; margin-top:0; min-width: 80px;">
-              <p class="name" style="font-size:8px;">${d.admin.name}<br>${d.admin.title}</p>
+            <div class="name-badge badge-simple org-person-card" data-role="vacant" data-dept="Administration" style="background: #94a3b8; padding: 4px 12px; margin-top:0; min-width: 80px;">
+              <p class="name" style="font-size:8px;">VACANT<br>ADMIN</p>
             </div>
             <div class="stem" style="height: 10px;"></div>
 
@@ -3251,33 +3051,84 @@
             <div style="display: flex; width: 1080px; justify-content: space-between;">
               <!-- Branch 1: Resource Management -->
               <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                ${renderNode('resMgr', 'fa-user-gear', 'Resource Management', 'opacity:0.6;')}
+                <div class="tree-node">
+                  <div class="avatar-ring color-srexec" style="opacity: 0.6;">
+                    <div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div>
+                  </div>
+                  <div class="name-badge org-person-card" data-role="vacant" data-dept="Resource Management" style="background: #94a3b8;">
+                    <p class="name">VACANT</p>
+                    <p class="title">SENIOR EXECUTIVE - ENGINEER<br>RESOURCE MANAGEMENT</p>
+                  </div>
+                </div>
 
                 <div style="transform: scale(0.65); transform-origin: top center; display: flex; flex-direction: column; align-items: center; width: 550px;">
                   <div class="stem"></div>
                   <div class="bracket-3way" style="width: 380px;"></div>
 
                   <div style="display: flex; width: 550px; justify-content: space-between;">
+                    <!-- Procurement -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('procExec', 'fa-cart-shopping', 'Procurement & Support')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-cart-shopping"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="Procurement & Support" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">EYLIA NAZIRA</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>PROCUREMENT &amp;<br>SUPPORT</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('procTo', 'fa-user', 'Procurement & Support')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="Procurement & Support">
+                          <p class="name">MUHAMMAD AMIRUL</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- Safety -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('safeExec', 'fa-shield-halved', 'Safety, Compliance & Improvement')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-shield-halved"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="Safety, Compliance & Improvement" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">QABSHA NORDIANAH</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>SAFETY, COMPLIANCE &amp; IMPROVEMENT</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('safeTo', 'fa-user', 'Safety, Compliance & Improvement')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="Safety, Compliance & Improvement">
+                          <p class="name">HAZIM MUSLIHIN</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                     </div>
 
+                    <!-- Inventory -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('invExec', 'fa-boxes-stacked', 'Inventory & Asset Management')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-boxes-stacked"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="Inventory & Asset Management" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">NUR HAFIZAH</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>INVENTORY &amp;<br>ASSET MANAGEMENT</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('invTo', 'fa-user', 'Inventory & Asset Management')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="Inventory & Asset Management">
+                          <p class="name">M. AZAMMUDIN</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
                       <div class="node-group" style="display: flex; flex-direction: column; align-items: center; width: auto;">
-                        ${d.invSpecs.map((s, idx) => renderPill(`invSpecs.${idx}`, s, 'Inventory & Asset Management')).join('')}
-                        ${renderAddBtn('invSpecs')}
+                        <div class="name-badge badge-simple color-specialist compact-node org-person-card" data-role="specialist" data-dept="Inventory & Asset Management" style="width: 145px; margin: 0;"><p class="name">CHANG CHAK FOO<br>SPECIALIST</p></div>
+                        <div class="name-badge badge-simple color-specialist compact-node org-person-card" data-role="specialist" data-dept="Inventory & Asset Management" style="width: 145px; margin: 0;"><p class="name">TAI MUN KON<br>SPECIALIST</p></div>
+                        <div class="name-badge badge-simple color-specialist compact-node org-person-card" data-role="specialist" data-dept="Inventory & Asset Management" style="width: 145px; margin: 0;"><p class="name">M. ELMY ZAKWAN<br>SPECIALIST</p></div>
+                        <div class="name-badge badge-simple color-specialist compact-node org-person-card" data-role="specialist" data-dept="Inventory & Asset Management" style="width: 145px; margin: 0;"><p class="name">DAUD SETOR<br>SPECIALIST</p></div>
+                        <div class="name-badge badge-simple color-specialist compact-node org-person-card" data-role="specialist" data-dept="Inventory & Asset Management" style="width: 145px; margin: 0;"><p class="name">MOHD HANIF<br>SPECIALIST</p></div>
+                        <div class="name-badge badge-simple compact-node org-person-card" data-role="vacant" data-dept="Inventory & Asset Management" style="background: #94a3b8; width: 145px; margin: 0;"><p class="name">VACANT<br>SPECIALIST</p></div>
                       </div>
                     </div>
                   </div>
@@ -3286,39 +3137,88 @@
 
               <!-- Branch 2: BHS Maintenance -->
               <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                ${renderNode('bhsMgr', 'fa-wrench', 'BHS Maintenance')}
+                <div class="tree-node">
+                  <div class="avatar-ring color-srexec">
+                    <div class="avatar-inner"><i class="fa-solid fa-wrench"></i></div>
+                  </div>
+                  <div class="name-badge color-srexec org-person-card" data-role="srexec" data-dept="BHS Maintenance">
+                    <p class="name">MOHD FAIRUS SAFUAN</p>
+                    <p class="title">SENIOR EXECUTIVE - ENGINEER<br>BHS MAINTENANCE</p>
+                  </div>
+                </div>
 
                 <div style="transform: scale(0.65); transform-origin: top center; display: flex; flex-direction: column; align-items: center; width: 520px;">
                   <div class="stem"></div>
                   <div class="bracket-3way" style="width: 340px;"></div>
 
                   <div style="display: flex; width: 520px; justify-content: space-between;">
+                    <!-- Electrical Planner -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('elecPlanExec', 'fa-plug', 'BHS Electrical Planning')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-plug"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="BHS Electrical Planning" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">NUR ANISAH AZIERA</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>ELECTRICAL PLANNER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('elecPlanTo', 'fa-user', 'BHS Electrical Planning')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="BHS Electrical Planning">
+                          <p class="name">ZARIZAL ROSLI</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
                       <div class="node-group" style="display: flex; flex-direction: column; align-items: center; width: auto;">
-                        ${d.elecPlanTechs.map((t, idx) => renderPill(`elecPlanTechs.${idx}`, t, 'BHS Electrical Planning')).join('')}
-                        ${renderAddBtn('elecPlanTechs')}
+                        <div class="name-badge badge-simple compact-node org-person-card" data-role="vacant" data-dept="BHS Electrical Planning" style="background: #94a3b8; width: 145px; margin: 0;"><p class="name">VACANT<br>TECHNICIAN</p></div>
+                        <div class="name-badge badge-simple compact-node org-person-card" data-role="vacant" data-dept="BHS Electrical Planning" style="background: #94a3b8; width: 145px; margin: 0;"><p class="name">VACANT<br>TECHNICIAN</p></div>
                       </div>
                     </div>
 
+                    <!-- Mechanical Planner -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('mechPlanExec', 'fa-cogs', 'BHS Mechanical Planning')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-cogs"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="BHS Mechanical Planning" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">MOHAMAD FARIZ</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>MECHANICAL PLANNER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('mechPlanTo', 'fa-user', 'BHS Mechanical Planning')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="BHS Mechanical Planning">
+                          <p class="name">MOHD AINUDDIN</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
                       <div class="node-group" style="display: flex; flex-direction: column; align-items: center; width: auto;">
-                        ${d.mechPlanTechs.map((t, idx) => renderPill(`mechPlanTechs.${idx}`, t, 'BHS Mechanical Planning')).join('')}
-                        ${renderAddBtn('mechPlanTechs')}
+                        <div class="name-badge badge-simple color-technician compact-node org-person-card" data-role="technician" data-dept="BHS Mechanical Planning" style="width: 145px; margin: 0;"><p class="name">HASHIM ABD AZIZ<br>TECHNICIAN</p></div>
+                        <div class="name-badge badge-simple color-technician compact-node org-person-card" data-role="technician" data-dept="BHS Mechanical Planning" style="width: 145px; margin: 0;"><p class="name">MOHD SHAFRI<br>TECHNICIAN</p></div>
+                        <div class="name-badge badge-simple compact-node org-person-card" data-role="vacant" data-dept="BHS Mechanical Planning" style="background: #94a3b8; width: 145px; margin: 0;"><p class="name">VACANT<br>TECHNICIAN</p></div>
+                        <div class="name-badge badge-simple compact-node org-person-card" data-role="vacant" data-dept="BHS Mechanical Planning" style="background: #94a3b8; width: 145px; margin: 0;"><p class="name">VACANT<br>TECHNICIAN</p></div>
                       </div>
                     </div>
 
+                    <!-- Floater -->
                     <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                      ${renderNode('shiftFloaterExec', 'fa-arrows-spin', 'Shift Floater Operations')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-arrows-spin"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="Shift Floater Operations" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">ZULKIPLE JAMAL</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>SHIFT FLOATER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('shiftFloaterChg', 'fa-bolt', 'Shift Floater Operations')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-bolt"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="Shift Floater Operations">
+                          <p class="name">MOHAMAD NOOR</p>
+                          <p class="title">CHARGEMAN A4<br>SHIFT FLOATER</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3326,7 +3226,15 @@
 
               <!-- Branch 3: Screening System -->
               <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center;">
-                ${renderNode('scrMgr', 'fa-user-shield', 'Screening System (PSS/ILHBS)', 'opacity:0.6;')}
+                <div class="tree-node">
+                  <div class="avatar-ring color-srexec" style="opacity: 0.6;">
+                    <div class="avatar-inner"><i class="fa-solid fa-user-shield"></i></div>
+                  </div>
+                  <div class="name-badge org-person-card" data-role="vacant" data-dept="Screening System (PSS/ILHBS)" style="background: #94a3b8;">
+                    <p class="name">VACANT</p>
+                    <p class="title">SENIOR EXECUTIVE - ENGINEER<br>SCREENING SYSTEM (PSS/ILHBS)</p>
+                  </div>
+                </div>
 
                 <div style="transform: scale(0.65); transform-origin: top center; display: flex; flex-direction: column; align-items: center; width: 400px;">
                   <div class="stem"></div>
@@ -3334,33 +3242,213 @@
 
                   <div style="display: flex; width: 400px; justify-content: space-between;">
                     <div style="display:flex; flex-direction:column; align-items:center; width: 180px;">
-                      ${renderNode('pssExec', 'fa-user', 'PAX Screening System (PSS)')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="PAX Screening System (PSS)" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">NURULAIN ABD RAHMAN</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>BHS MAINTENANCE<br>PAX SCREENING SYSTEM (PSS)</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
-                      ${renderNode('pssTo', 'fa-user', 'PAX Screening System (PSS)')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="PAX Screening System (PSS)">
+                          <p class="name">AZMAN HELMY</p>
+                          <p class="title">TECHNICAL OFFICER</p>
+                        </div>
+                      </div>
                       <div class="stem"></div>
                       <div class="node-group" style="display: flex; flex-direction: column; align-items: center; width: auto;">
-                        ${d.pssTechs.map((t, idx) => renderPill(`pssTechs.${idx}`, t, 'PAX Screening System (PSS)')).join('')}
-                        ${renderAddBtn('pssTechs')}
+                        <div class="name-badge badge-simple color-technician compact-node org-person-card" data-role="technician" data-dept="PAX Screening System (PSS)" style="width: 145px; margin: 0;"><p class="name">AZRIN GHAZALI<br>TECHNICIAN</p></div>
+                        <div class="name-badge badge-simple color-technician compact-node org-person-card" data-role="technician" data-dept="PAX Screening System (PSS)" style="width: 145px; margin: 0;"><p class="name">M. AMIR HAMZAH<br>TECHNICIAN</p></div>
                       </div>
                     </div>
 
                     <div style="display:flex; flex-direction:column; align-items:center; width: 180px;">
-                      ${renderNode('ilhbsExec', 'fa-user', 'In-Line Hold Baggage Screening (ILHBS)')}
+                      <div class="tree-node">
+                        <div class="avatar-ring color-exec"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                        <div class="name-badge color-exec org-person-card" data-role="exec" data-dept="In-Line Hold Baggage Screening (ILHBS)" style="height: 76px; display: flex; flex-direction: column; justify-content: center;">
+                          <p class="name">ABDULLAH HARIP</p>
+                          <p class="title">EXECUTIVE ENGINEER<br>IN-LINE HOLD BAGGAGE SCREENING (ILHBS)</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
-            ${customBranchesHtml}
           </div>
         </div>`;
       }
 
-      if (pageId >= 2 && pageId <= 5) {
-        const shiftKey = pageId === 2 ? 'A' : (pageId === 3 ? 'B' : (pageId === 4 ? 'C' : 'D'));
-        const cfg = d.shifts[shiftKey] || d.shifts[pageId];
-        
+      if (pageId === 2 || pageId === 3 || pageId === 4 || pageId === 5) {
+        const shiftConfigs = {
+          2: {
+            title: 'BHS Maintenance — Shift A',
+            lead: { name: 'SAMSULNAZRI ABDUL AZIZ', vacant: false },
+            mech: {
+              to: 'MOHAMAD ZAHIRUDDIN',
+              specs: [
+                { name: 'MOHD SHAHRULNIZAM', vacant: false },
+                { name: "AHMAD A'ZZUDDIN", vacant: false },
+                { name: 'SOO YUN LOY', vacant: false },
+                { name: 'HALIM', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ],
+              techs: [
+                { name: 'MOHD HAZAIDI', vacant: false },
+                { name: 'NOR FAZLI', vacant: false },
+                { name: 'MOHD HAKIMI', vacant: false },
+                { name: 'MUZAFAR', vacant: false },
+                { name: 'MOHAMAD ADAM SUHAIL', vacant: false },
+                { name: 'ADNAN', vacant: false }
+              ]
+            },
+            elec: {
+              chg: 'MOHD HARRIS',
+              to: 'JAFRI',
+              techs: [
+                { name: 'MUHAMAD IKHWAN', vacant: false },
+                { name: 'MOHAMAD SAIFUDDIN', vacant: false },
+                { name: 'MUHAMMAD AFIQ', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            scr: {
+              to: 'NORIZAN',
+              techs: [
+                { name: 'MOHD REZLAN', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            }
+          },
+          3: {
+            title: 'BHS Maintenance — Shift B',
+            lead: { name: 'ZAHIDAH ANSARI', vacant: false },
+            mech: {
+              to: 'RASHIDI',
+              specs: [
+                { name: 'ABDUL HALIM', vacant: false },
+                { name: 'MOHD WAZLI', vacant: false },
+                { name: 'RASHLAN', vacant: false },
+                { name: 'SHAHARIL', vacant: false },
+                { name: 'MOHAMMAD SYAFIQ', vacant: false }
+              ],
+              techs: [
+                { name: 'MUHAMMAD ASYRAF', vacant: false },
+                { name: 'SHIPPY ANAK NGUDAN', vacant: false },
+                { name: 'EMIRUL IZUAD', vacant: false },
+                { name: 'MOHD AZMI', vacant: false },
+                { name: 'VACANT', vacant: true },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'HASSAN',
+              to: 'MOHD AZRAF',
+              techs: [
+                { name: 'SHAHRUL EHSAN', vacant: false },
+                { name: 'WAN SYAHMI', vacant: false },
+                { name: 'MOHD SYAFIQ', vacant: false },
+                { name: 'MOHD FAZREEN', vacant: false }
+              ]
+            },
+            scr: {
+              to: 'ASREE',
+              techs: [
+                { name: 'MUHD ILTIZAM', vacant: false },
+                { name: 'MUHAMMAD NUUR', vacant: false }
+              ]
+            }
+          },
+          4: {
+            title: 'BHS Maintenance — Shift C',
+            lead: { name: 'VACANT', vacant: true },
+            mech: {
+              to: 'MOHD ZAKI',
+              specs: [
+                { name: 'EAW GUAN HUAT', vacant: false },
+                { name: 'TEONG MENG KOW', vacant: false },
+                { name: 'OMAR', vacant: false },
+                { name: 'AZIMAN', vacant: false },
+                { name: 'MUHAMAD FARID', vacant: false }
+              ],
+              techs: [
+                { name: 'MUHAMMAD AMMAR', vacant: false },
+                { name: 'MUHAMMAD KHAIRULAZMAN', vacant: false },
+                { name: 'MOHAMED TAUFIK', vacant: false },
+                { name: 'ZAHARI', vacant: false },
+                { name: 'MUHAMMAD AMINULLAH', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'AMIR HASSAN',
+              to: 'MOHD JOHARI',
+              techs: [
+                { name: 'MUHAMMAD HARITH ELYABASS', vacant: false },
+                { name: 'WAN SAIFUL AFFENDI', vacant: false },
+                { name: 'MOHAMMAD FIRKHAN', vacant: false },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            scr: {
+              to: 'SHARIPUNNAHAR',
+              techs: [
+                { name: 'MUHAMMAD HANIF', vacant: false },
+                { name: 'MD RAZIF', vacant: false }
+              ]
+            }
+          },
+          5: {
+            title: 'BHS Maintenance — Shift D',
+            lead: { name: 'VACANT', vacant: true },
+            mech: {
+              to: 'ZUBIR',
+              specs: [
+                { name: 'ZAINI', vacant: false },
+                { name: 'AZMI', vacant: false },
+                { name: 'RUHAIZAN', vacant: false },
+                { name: 'SANI SYAHFI', vacant: false },
+                { name: 'MOHD KHAIRIL IZHAM', vacant: false }
+              ],
+              techs: [
+                { name: 'MOHD RAFI', vacant: false },
+                { name: 'IFSAN WAHYUDI', vacant: false },
+                { name: 'MUHAMMAD SYAFIQ', vacant: false },
+                { name: 'MUHAMMAD IRFAN IHTISYAM', vacant: false },
+                { name: 'VACANT', vacant: true },
+                { name: 'VACANT', vacant: true }
+              ]
+            },
+            elec: {
+              chg: 'MUHAMAD IQBAL',
+              to: 'MUHAMAD SHAMSUL SUHAINI',
+              techs: [
+                { name: 'MOHD ZARIZEE', vacant: false },
+                { name: 'RAHIM', vacant: false },
+                { name: 'MUHAMMAD NIZAM', vacant: false },
+                { name: 'MUHAMMAD YASSIN', vacant: false }
+              ]
+            },
+            scr: {
+              to: 'MOHAMAD FAUZI',
+              techs: [
+                { name: 'LUQMAN HAKIM', vacant: false },
+                { name: 'NURUL IMAN AL IZWAN', vacant: false }
+              ]
+            }
+          }
+        };
+
+        const cfg = shiftConfigs[pageId];
+        const renderPill = (item, colorClass, roleTag, dept) => {
+          const bgStyle = item.vacant ? 'background: #94a3b8;' : '';
+          const cls = item.vacant ? '' : colorClass;
+          const rAttr = item.vacant ? 'vacant' : roleTag;
+          return `<div class="name-badge badge-simple ${cls} org-person-card" data-role="${rAttr}" data-dept="${dept}" style="${bgStyle} margin: 0; padding: 5px 8px; width: 125px;"><p class="name" style="font-size: 9px;">${item.name}</p></div>`;
+        };
+
         return `
         <div class="org-canvas" id="org-canvas-active">
           <div style="text-align: center; margin-bottom: 12px;">
@@ -3369,7 +3457,15 @@
           </div>
 
           <div class="tree-wrapper" style="margin-top: 0; width: 960px;">
-            ${renderNode(`shifts.${shiftKey}.lead`, 'fa-user-gear', `${cfg.title} Operations`)}
+            <div class="tree-node">
+              <div class="avatar-ring color-exec" style="${cfg.lead.vacant ? 'opacity: 0.6;' : ''}">
+                <div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div>
+              </div>
+              <div class="name-badge ${cfg.lead.vacant ? '' : 'color-exec'} org-person-card" data-role="${cfg.lead.vacant ? 'vacant' : 'exec'}" data-dept="${cfg.title}" style="${cfg.lead.vacant ? 'background: #94a3b8;' : ''}">
+                <p class="name">${cfg.lead.name}</p>
+                <p class="title">EXECUTIVE ENGINEER<br>BHS MAINTENANCE</p>
+              </div>
+            </div>
 
             <div class="stem" style="height: 14px;"></div>
             <div class="bracket-3way" style="width: 640px;"></div>
@@ -3380,18 +3476,22 @@
                 <div class="name-badge badge-simple" style="background: #1e293b; margin-top: 0; margin-bottom: 6px; padding: 4px 16px;">
                   <p class="name" style="font-size: 10px; letter-spacing: 1px;">MECHANICAL</p>
                 </div>
-                ${renderNode(`shifts.${shiftKey}.mechTo`, 'fa-wrench', `${cfg.title} — Mechanical`)}
+                <div class="tree-node">
+                  <div class="avatar-ring color-techoff" style="width: 58px; height: 58px;"><div class="avatar-inner"><i class="fa-solid fa-wrench" style="font-size: 22px;"></i></div></div>
+                  <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="${cfg.title} — Mechanical" style="padding: 6px 12px;">
+                    <p class="name" style="font-size: 10px;">${cfg.mech.to}</p>
+                    <p class="title">TECHNICAL OFFICER</p>
+                  </div>
+                </div>
                 <div class="stem" style="height: 12px;"></div>
                 <div style="display: flex; gap: 10px; width: 100%; justify-content: center;">
                   <div style="display: flex; flex-direction: column; gap: 5px; width: 48%; align-items: center;">
                     <p style="font-size: 14px; font-weight: 700; color: #2563eb; text-align: center; margin-bottom: 2px;">SPECIALISTS</p>
-                    ${cfg.mechSpecs.map((s, idx) => renderPill(`shifts.${shiftKey}.mechSpecs.${idx}`, s, `${cfg.title} — Mechanical`, false, 'padding: 5px 8px; width: 125px; margin: 0;')).join('')}
-                    ${renderAddBtn(`shifts.${shiftKey}.mechSpecs`)}
+                    ${cfg.mech.specs.map(s => renderPill(s, 'color-specialist', 'specialist', `${cfg.title} — Mechanical Specialist`)).join('')}
                   </div>
                   <div style="display: flex; flex-direction: column; gap: 5px; width: 52%; align-items: center;">
                     <p style="font-size: 14px; font-weight: 700; color: #0ea5e9; text-align: center; margin-bottom: 2px;">TECHNICIANS</p>
-                    ${cfg.mechTechs.map((t, idx) => renderPill(`shifts.${shiftKey}.mechTechs.${idx}`, t, `${cfg.title} — Mechanical`, false, 'padding: 5px 8px; width: 125px; margin: 0;')).join('')}
-                    ${renderAddBtn(`shifts.${shiftKey}.mechTechs`)}
+                    ${cfg.mech.techs.map(t => renderPill(t, 'color-technician', 'technician', `${cfg.title} — Mechanical Technician`)).join('')}
                   </div>
                 </div>
               </div>
@@ -3401,34 +3501,46 @@
                 <div class="name-badge badge-simple" style="background: #1e293b; margin-top: 0; margin-bottom: 6px; padding: 4px 16px;">
                   <p class="name" style="font-size: 10px; letter-spacing: 1px;">ELECTRICAL</p>
                 </div>
-                ${renderNode(`shifts.${shiftKey}.elecChg`, 'fa-bolt', `${cfg.title} — Electrical`)}
+                <div class="tree-node">
+                  <div class="avatar-ring color-techoff" style="width: 58px; height: 58px;"><div class="avatar-inner"><i class="fa-solid fa-bolt" style="font-size: 22px;"></i></div></div>
+                  <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="${cfg.title} — Electrical" style="padding: 6px 12px;">
+                    <p class="name" style="font-size: 10px;">${cfg.elec.chg}</p>
+                    <p class="title">CHARGEMAN</p>
+                  </div>
+                </div>
                 <div class="stem" style="height: 10px;"></div>
-                ${renderNode(`shifts.${shiftKey}.elecTo`, 'fa-user', `${cfg.title} — Electrical`)}
+                <div class="name-badge badge-simple color-techoff org-person-card" data-role="techoff" data-dept="${cfg.title} — Electrical" style="margin-top: 0; padding: 6px 14px;">
+                  <p class="name" style="font-size: 10px;">${cfg.elec.to}</p>
+                  <p class="title">TECHNICAL OFFICER</p>
+                </div>
                 <div class="stem" style="height: 10px;"></div>
                 <div style="display: flex; flex-direction: column; gap: 5px; width: 88%; align-items: center;">
                   <p style="font-size: 14px; font-weight: 700; color: #0ea5e9; text-align: center; margin-bottom: 2px;">TECHNICIANS</p>
-                  ${cfg.elecTechs.map((t, idx) => renderPill(`shifts.${shiftKey}.elecTechs.${idx}`, t, `${cfg.title} — Electrical`, false, 'padding: 5px 8px; width: 125px; margin: 0;')).join('')}
-                  ${renderAddBtn(`shifts.${shiftKey}.elecTechs`)}
+                  ${cfg.elec.techs.map(t => renderPill(t, 'color-technician', 'technician', `${cfg.title} — Electrical Technician`)).join('')}
                 </div>
               </div>
 
               <!-- SCREENING SYSTEM -->
               <div style="width: 33.33%; display: flex; flex-direction: column; align-items: center; padding: 0 6px;">
                 <div class="name-badge badge-simple" style="background: #1e293b; margin-top: 0; margin-bottom: 6px; padding: 4px 16px;">
-                  <div class="s6-mini-pill color-technician"><p class="name" contenteditable="true">LUQMAN HAKIM</p></div>
-                  <div class="s6-mini-pill color-technician"><p class="name" contenteditable="true">NURUL IMAN AL IZWAN</p></div>
+                  <p class="name" style="font-size: 10px; letter-spacing: 1px;">SCREENING SYSTEM</p>
+                </div>
+                <div class="tree-node">
+                  <div class="avatar-ring color-techoff" style="width: 58px; height: 58px;"><div class="avatar-inner"><i class="fa-solid fa-shield-halved" style="font-size: 22px;"></i></div></div>
+                  <div class="name-badge color-techoff org-person-card" data-role="techoff" data-dept="${cfg.title} — Screening System" style="padding: 6px 12px;">
+                    <p class="name" style="font-size: 10px;">${cfg.scr.to}</p>
+                    <p class="title">TECHNICAL OFFICER</p>
+                  </div>
+                </div>
+                <div class="stem" style="height: 12px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 6px; width: 88%; align-items: center;">
+                  <p style="font-size: 14px; font-weight: 700; color: #0ea5e9; text-align: center; margin-bottom: 2px;">TECHNICIANS</p>
+                  ${cfg.scr.techs.map(t => renderPill(t, 'color-technician', 'technician', `${cfg.title} — Screening Technician`)).join('')}
                 </div>
               </div>
             </div>
           </div>
-
-        </div>
-        
-        ${customBranchesHtml}
-      </div>
-
-    </div>
-  </div>`;
+        </div>`;
       }
 
       /* Page 6: Complete Integrated Master Chart */
@@ -3440,11 +3552,19 @@
         </div>
 
         <div class="s6-upper">
-          ${renderS6Lg('manager', 'fa-user-tie', 'Terminal 1 Management')}
+          <div class="s6-node">
+            <div class="s6-avatar-lg color-manager">
+              <div class="avatar-inner"><i class="fa-solid fa-user-tie"></i></div>
+            </div>
+            <div class="s6-badge-lg color-manager org-person-card" data-role="manager" data-dept="Terminal 1 Management">
+              <p class="name">NURLIANA AMRAN</p>
+              <p class="title">( MANAGER - TERMINAL 1 )</p>
+            </div>
+          </div>
 
           <div class="s6-stem" style="height: 4px;"></div>
-          <div class="org-person-card ${state.orgEditMode ? 'edit-active' : ''}" data-edit-path="admin" data-role="${d.admin.role}" data-dept="Administration" style="background: ${d.admin.role === 'vacant' ? '#94a3b8' : 'var(--accent)'}; border-radius: 4px; padding: 2px 10px; text-align: center;">
-            <p style="margin: 0; font-size: 6.5px; font-weight: 700; color: #ffffff; line-height: 1.1;">${d.admin.name}<br>${d.admin.title}</p>
+          <div class="org-person-card" data-role="vacant" data-dept="Administration" style="background: #94a3b8; border-radius: 4px; padding: 2px 10px; text-align: center;">
+            <p style="margin: 0; font-size: 6.5px; font-weight: 700; color: #ffffff; line-height: 1.1;">VACANT<br>ADMIN</p>
           </div>
           <div class="s6-stem" style="height: 5px;"></div>
 
@@ -3455,7 +3575,15 @@
           <div style="display: flex; width: 1228px; justify-content: space-between; align-items: flex-start;">
             <!-- BRANCH 1: Resource Management -->
             <div style="width: 408px; display: flex; flex-direction: column; align-items: center;">
-              ${renderS6Lg('resMgr', 'fa-user-gear', 'Resource Management', 'opacity: 0.65;')}
+              <div class="s6-node">
+                <div class="s6-avatar-lg color-srexec" style="opacity: 0.65;">
+                  <div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div>
+                </div>
+                <div class="s6-badge-lg org-person-card" data-role="vacant" data-dept="Resource Management" style="background: #94a3b8;">
+                  <p class="name">VACANT</p>
+                  <p class="title">SENIOR EXECUTIVE - ENGINEER<br>RESOURCE MANAGEMENT</p>
+                </div>
+              </div>
 
               <div class="s6-stem" style="height: 6px;"></div>
               <div class="s6-bracket-sub3">
@@ -3464,25 +3592,65 @@
 
               <div style="display: flex; width: 366px; justify-content: space-between; align-items: flex-start;">
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('procExec', 'fa-cart-shopping', 'Procurement & Support')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-cart-shopping"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="Procurement & Support">
+                      <p class="name">EYLIA NAZIRA</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>PROCUREMENT &amp; SUPPORT</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('procTo', 'fa-user', 'Procurement & Support')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="Procurement & Support" style="min-height: 26px;">
+                      <p class="name">MUHAMMAD AMIRUL</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('safeExec', 'fa-shield-halved', 'Safety & Compliance')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-shield-halved"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="Safety & Compliance">
+                      <p class="name">QABSHA NORDIANAH</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>SAFETY &amp; COMPLIANCE</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('safeTo', 'fa-user', 'Safety & Compliance')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="Safety & Compliance" style="min-height: 26px;">
+                      <p class="name">HAZIM MUSLIHIN</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('invExec', 'fa-boxes-stacked', 'Inventory & Asset Management')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-boxes-stacked"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="Inventory & Asset Management">
+                      <p class="name">NUR HAFIZAH</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>INVENTORY &amp; ASSET</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('invTo', 'fa-user', 'Inventory & Asset Management')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="Inventory & Asset Management" style="min-height: 26px;">
+                      <p class="name">M. AZAMMUDIN</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                   <div style="display: flex; flex-direction: column; gap: 2px; align-items: center; margin-top: 3px;">
                     <p style="font-size: 8px; font-weight: 800; color: #2563eb; text-align: center; margin-bottom: 2px; letter-spacing: 0.5px;">SPECIALISTS</p>
-                    ${d.invSpecs.map((s, idx) => renderS6Pill(`invSpecs.${idx}`, s, 'Inventory & Asset Management', 'SPEC.')).join('')}
-                    ${renderAddBtn('invSpecs', true)}
+                    <div class="s6-pill-sm color-specialist org-person-card" data-role="specialist" data-dept="Inventory & Asset Management"><p class="name">CHANG CHAK FOO</p></div>
+                    <div class="s6-pill-sm color-specialist org-person-card" data-role="specialist" data-dept="Inventory & Asset Management"><p class="name">TAI MUN KON</p></div>
+                    <div class="s6-pill-sm color-specialist org-person-card" data-role="specialist" data-dept="Inventory & Asset Management"><p class="name">M. ELMY ZAKWAN</p></div>
+                    <div class="s6-pill-sm color-specialist org-person-card" data-role="specialist" data-dept="Inventory & Asset Management"><p class="name">DAUD SETOR</p></div>
+                    <div class="s6-pill-sm color-specialist org-person-card" data-role="specialist" data-dept="Inventory & Asset Management"><p class="name">MOHD HANIF</p></div>
+                    <div class="s6-pill-sm org-person-card" data-role="vacant" data-dept="Inventory & Asset Management" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                   </div>
                 </div>
               </div>
@@ -3490,7 +3658,15 @@
 
             <!-- BRANCH 2: BHS Maintenance -->
             <div style="width: 412px; display: flex; flex-direction: column; align-items: center;">
-              ${renderS6Lg('bhsMgr', 'fa-wrench', 'BHS Maintenance')}
+              <div class="s6-node">
+                <div class="s6-avatar-lg color-srexec">
+                  <div class="avatar-inner"><i class="fa-solid fa-wrench"></i></div>
+                </div>
+                <div class="s6-badge-lg color-srexec org-person-card" data-role="srexec" data-dept="BHS Maintenance">
+                  <p class="name">MOHD FAIRUS SAFUAN</p>
+                  <p class="title">SENIOR EXECUTIVE - ENGINEER<br>BHS MAINTENANCE</p>
+                </div>
+              </div>
 
               <div class="s6-stem" style="height: 6px;"></div>
               <div class="s6-bracket-sub2">
@@ -3499,13 +3675,25 @@
 
               <div style="display: flex; width: 312px; justify-content: space-between; align-items: flex-start;">
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('elecPlanExec', 'fa-plug', 'BHS Electrical Planning')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-plug"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="BHS Electrical Planning">
+                      <p class="name">NUR ANISAH AZIERA</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>ELECTRICAL PLANNER</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('elecPlanTo', 'fa-user', 'BHS Electrical Planning')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="BHS Electrical Planning" style="min-height: 26px;">
+                      <p class="name">ZARIZAL ROSLI</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                   <div style="display: flex; flex-direction: column; gap: 2px; align-items: center; margin-top: 3px;">
                     <p style="font-size: 8px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 2px; letter-spacing: 0.5px;">TECHNICIANS</p>
-                    ${d.elecPlanTechs.map((t, idx) => renderS6Pill(`elecPlanTechs.${idx}`, t, 'BHS Electrical Planning', 'TECHNICIAN')).join('')}
-                    ${renderAddBtn('elecPlanTechs', true)}
+                    <div class="s6-pill-sm org-person-card" data-role="vacant" data-dept="BHS Electrical Planning" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                    <div class="s6-pill-sm org-person-card" data-role="vacant" data-dept="BHS Electrical Planning" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                   </div>
                 </div>
 
@@ -3515,13 +3703,27 @@
                 </div>
 
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('mechPlanExec', 'fa-cogs', 'BHS Mechanical Planning')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-cogs"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="BHS Mechanical Planning">
+                      <p class="name">MOHAMAD FARIZ</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>MECHANICAL PLANNER</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('mechPlanTo', 'fa-user', 'BHS Mechanical Planning')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="BHS Mechanical Planning" style="min-height: 26px;">
+                      <p class="name">MOHD AINUDDIN</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                   <div style="display: flex; flex-direction: column; gap: 2px; align-items: center; margin-top: 3px;">
                     <p style="font-size: 8px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 2px; letter-spacing: 0.5px;">TECHNICIANS</p>
-                    ${d.mechPlanTechs.map((t, idx) => renderS6Pill(`mechPlanTechs.${idx}`, t, 'BHS Mechanical Planning', 'TECH.')).join('')}
-                    ${renderAddBtn('mechPlanTechs', true)}
+                    <div class="s6-pill-sm color-technician org-person-card" data-role="technician" data-dept="BHS Mechanical Planning"><p class="name">HASHIM ABD AZIZ</p></div>
+                    <div class="s6-pill-sm color-technician org-person-card" data-role="technician" data-dept="BHS Mechanical Planning"><p class="name">MOHD SHAFRI</p></div>
+                    <div class="s6-pill-sm org-person-card" data-role="vacant" data-dept="BHS Mechanical Planning" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                    <div class="s6-pill-sm org-person-card" data-role="vacant" data-dept="BHS Mechanical Planning" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                   </div>
                 </div>
               </div>
@@ -3529,25 +3731,51 @@
 
             <!-- BRANCH 3: Screening System -->
             <div style="width: 408px; display: flex; flex-direction: column; align-items: center;">
-              ${renderS6Lg('scrMgr', 'fa-user-shield', 'Screening System (PSS/ILHBS)', 'opacity: 0.65;')}
+              <div class="s6-node">
+                <div class="s6-avatar-lg color-srexec" style="opacity: 0.65;">
+                  <div class="avatar-inner"><i class="fa-solid fa-user-shield"></i></div>
+                </div>
+                <div class="s6-badge-lg org-person-card" data-role="vacant" data-dept="Screening System (PSS/ILHBS)" style="background: #94a3b8;">
+                  <p class="name">VACANT</p>
+                  <p class="title">SENIOR EXECUTIVE - ENGINEER<br>SCREENING SYSTEM (PSS/ILHBS)</p>
+                </div>
+              </div>
 
               <div class="s6-stem" style="height: 6px;"></div>
               <div class="s6-bracket-sub2" style="width: 140px;"></div>
 
               <div style="display: flex; width: 256px; justify-content: space-between; align-items: flex-start;">
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('pssExec', 'fa-user', 'PAX Screening (PSS)')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="PAX Screening (PSS)">
+                      <p class="name">NURULAIN ABD RAHMAN</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>PAX SCREENING (PSS)</p>
+                    </div>
+                  </div>
                   <div class="s6-stem" style="height: 6px;"></div>
-                  ${renderS6Md('pssTo', 'fa-user', 'PAX Screening (PSS)')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-techoff"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-techoff org-person-card" data-role="techoff" data-dept="PAX Screening (PSS)" style="min-height: 26px;">
+                      <p class="name">AZMAN HELMY</p>
+                      <p class="title">TECHNICAL OFFICER</p>
+                    </div>
+                  </div>
                   <div style="display: flex; flex-direction: column; gap: 2px; align-items: center; margin-top: 3px;">
                     <p style="font-size: 8px; font-weight: 800; color: #0ea5e9; text-align: center; margin-bottom: 2px; letter-spacing: 0.5px;">TECHNICIANS</p>
-                    ${d.pssTechs.map((t, idx) => renderS6Pill(`pssTechs.${idx}`, t, 'PAX Screening (PSS)', 'TECH.')).join('')}
-                    ${renderAddBtn('pssTechs', true)}
+                    <div class="s6-pill-sm color-technician org-person-card" data-role="technician" data-dept="PAX Screening (PSS)"><p class="name">AZRIN GHAZALI</p></div>
+                    <div class="s6-pill-sm color-technician org-person-card" data-role="technician" data-dept="PAX Screening (PSS)"><p class="name">M. AMIR HAMZAH</p></div>
                   </div>
                 </div>
 
                 <div style="width: 116px; display: flex; flex-direction: column; align-items: center;">
-                  ${renderS6Md('ilhbsExec', 'fa-user', 'Hold Baggage (ILHBS)')}
+                  <div class="s6-node">
+                    <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user"></i></div></div>
+                    <div class="s6-badge-md color-exec org-person-card" data-role="exec" data-dept="Hold Baggage (ILHBS)">
+                      <p class="name">ABDULLAH HARIP</p>
+                      <p class="title">EXECUTIVE ENGINEER<br>HOLD BAGGAGE (ILHBS)</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3564,136 +3792,250 @@
             <div style="display: flex; width: 1228px; justify-content: space-between; align-items: flex-start;">
               <!-- 1. SHIFT FLOATER -->
               <div style="width: 148px; display: flex; flex-direction: column; align-items: center;">
-                ${renderS6Exec('shiftFloaterExec', 'fa-arrows-spin', 'Shift Floater Operations')}
+                <div class="s6-exec-node">
+                  <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-arrows-spin"></i></div></div>
+                  <div class="s6-exec-badge color-exec org-person-card" data-role="exec" data-dept="Shift Floater Operations">
+                    <p class="name">ZULKIPLE JAMAL</p>
+                    <p class="title">EXECUTIVE ENGINEER<br>SHIFT FLOATER</p>
+                  </div>
+                </div>
                 <div class="s6-stem" style="height: 6px;"></div>
                 <div class="s6-shift-card" style="padding: 8px 6px;">
                   <div class="s6-avatar-md color-techoff" style="width: 30px; height: 30px;"><div class="avatar-inner"><i class="fa-solid fa-bolt" style="font-size: 12px;"></i></div></div>
-                  <div class="s6-mini-pill color-techoff org-person-card ${state.orgEditMode ? 'edit-active' : ''}" data-edit-path="shiftFloaterChg" data-role="${d.shiftFloaterChg.role}" data-dept="Shift Floater Operations" style="margin-top: -4px; padding: 4px 4px;">
-                    <p class="name" style="font-size: 6.5px;">${d.shiftFloaterChg.name}</p>
-                    <p class="title" style="font-size: 5.5px;">${d.shiftFloaterChg.title}</p>
+                  <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift Floater Operations" style="margin-top: -4px; padding: 4px 4px;">
+                    <p class="name" style="font-size: 6.5px;">MOHAMAD NOOR</p>
+                    <p class="title" style="font-size: 5.5px;">CHARGEMAN A4<br>SHIFT FLOATER</p>
                   </div>
                 </div>
               </div>
 
-              <!-- 2 to 5. SHIFTS A, B, C, D -->
-              ${['A', 'B', 'C', 'D'].map((shiftKey, i) => {
-                const s = d.shifts[shiftKey] || d.shifts[i + 2];
-                if (!s) return '';
-                const baseKey = d.shifts[shiftKey] ? shiftKey : (i + 2);
-                return `
+              <!-- 2. SHIFT A -->
               <div style="width: 262px; display: flex; flex-direction: column; align-items: center;">
-                ${renderS6Exec(`shifts.${baseKey}.lead`, 'fa-user-gear', `Shift ${shiftKey} Operations`)}
+                <div class="s6-exec-node">
+                  <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
+                  <div class="s6-exec-badge color-exec org-person-card" data-role="exec" data-dept="Shift A Operations" style="width: 170px;">
+                    <p class="name">SAMSULNAZRI ABDUL AZIZ</p>
+                    <p class="title">EXECUTIVE ENGINEER — SHIFT A</p>
+                  </div>
+                </div>
                 <div class="s6-stem" style="height: 6px;"></div>
                 <div class="s6-shift-card">
                   <div style="display: flex; width: 100%; gap: 3px; align-items: flex-start;">
                     <div style="width: 118px; display: flex; flex-direction: column; gap: 1.5px;">
                       <div class="s6-disc-hdr">MECHANICAL</div>
-                      ${renderS6Pill(`shifts.${baseKey}.mechTo`, s.mechTo, `Shift ${shiftKey} — Mechanical`)}
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift A — Mechanical"><p class="name">MOHAMAD ZAHIRUDDIN</p><p class="title">TECHNICAL OFFICER</p></div>
                       <div style="display: flex; gap: 2px; width: 100%;">
                         <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
                           <div class="s6-role-lbl" style="color: #2563eb;">SPECIALISTS</div>
-                          ${s.mechSpecs.map((spec, idx) => renderS6Pill(`shifts.${baseKey}.mechSpecs.${idx}`, spec, `Shift ${shiftKey} — Mechanical`)).join('')}
-                          ${renderAddBtn(`shifts.${baseKey}.mechSpecs`, true)}
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift A — Mechanical"><p class="name">M. SHAHRULNIZAM</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift A — Mechanical"><p class="name">AHMAD A'ZZUDDIN</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift A — Mechanical"><p class="name">SOO YUN LOY</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift A — Mechanical"><p class="name">HALIM</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift A — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                         </div>
                         <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
                           <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
-                          ${s.mechTechs.map((tech, idx) => renderS6Pill(`shifts.${baseKey}.mechTechs.${idx}`, tech, `Shift ${shiftKey} — Mechanical`)).join('')}
-                          ${renderAddBtn(`shifts.${baseKey}.mechTechs`, true)}
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">MOHD HAZAIDI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">NOR FAZLI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">MOHD HAKIMI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">MUZAFAR</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">M. ADAM SUHAIL</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Mechanical"><p class="name">ADNAN</p></div>
                         </div>
                       </div>
                     </div>
                     <div style="width: 71px; display: flex; flex-direction: column; gap: 1.5px;">
                       <div class="s6-disc-hdr">ELECTRICAL</div>
-                      ${renderS6Pill(`shifts.${baseKey}.elecChg`, s.elecChg, `Shift ${shiftKey} — Electrical`)}
-                      ${renderS6Pill(`shifts.${baseKey}.elecTo`, s.elecTo, `Shift ${shiftKey} — Electrical`)}
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift A — Electrical"><p class="name">MOHD HARRIS</p><p class="title">CHARGEMAN</p></div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift A — Electrical"><p class="name">JAFRI</p><p class="title">TECH. OFFICER</p></div>
                       <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
-                      ${s.elecTechs.map((tech, idx) => renderS6Pill(`shifts.${baseKey}.elecTechs.${idx}`, tech, `Shift ${shiftKey} — Electrical`)).join('')}
-                      ${renderAddBtn(`shifts.${baseKey}.elecTechs`, true)}
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Electrical"><p class="name">MUHAMAD IKHWAN</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Electrical"><p class="name">M. SAIFUDDIN</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Electrical"><p class="name">MUHAMMAD AFIQ</p></div>
+                      <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift A — Electrical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                     </div>
                     <div style="width: 59px; display: flex; flex-direction: column; gap: 1.5px;">
                       <div class="s6-disc-hdr">SCREENING</div>
-                      ${renderS6Pill(`shifts.${baseKey}.scrTo`, s.scrTo, `Shift ${shiftKey} — Screening`)}
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift A — Screening"><p class="name">NORIZAN</p><p class="title">TECH. OFFICER</p></div>
                       <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
-                      ${s.scrTechs.map((tech, idx) => renderS6Pill(`shifts.${baseKey}.scrTechs.${idx}`, tech, `Shift ${shiftKey} — Screening`)).join('')}
-                      ${renderAddBtn(`shifts.${baseKey}.scrTechs`, true)}
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift A — Screening"><p class="name">MOHD REZLAN</p></div>
+                      <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift A — Screening" style="background: #94a3b8;"><p class="name">VACANT</p></div>
                     </div>
                   </div>
                 </div>
-              </div>`;
-              }).join('')}
+              </div>
 
+              <!-- 3. SHIFT B -->
+              <div style="width: 262px; display: flex; flex-direction: column; align-items: center;">
+                <div class="s6-exec-node">
+                  <div class="s6-avatar-md color-exec"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
+                  <div class="s6-exec-badge color-exec org-person-card" data-role="exec" data-dept="Shift B Operations" style="width: 170px;">
+                    <p class="name">ZAHIDAH ANSARI</p>
+                    <p class="title">EXECUTIVE ENGINEER — SHIFT B</p>
+                  </div>
+                </div>
+                <div class="s6-stem" style="height: 6px;"></div>
+                <div class="s6-shift-card">
+                  <div style="display: flex; width: 100%; gap: 3px; align-items: flex-start;">
+                    <div style="width: 118px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">MECHANICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift B — Mechanical"><p class="name">RASHIDI</p><p class="title">TECHNICAL OFFICER</p></div>
+                      <div style="display: flex; gap: 2px; width: 100%;">
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #2563eb;">SPECIALISTS</div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift B — Mechanical"><p class="name">ABDUL HALIM</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift B — Mechanical"><p class="name">MOHD WAZLI</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift B — Mechanical"><p class="name">RASHLAN</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift B — Mechanical"><p class="name">SHAHARIL</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift B — Mechanical"><p class="name">MOHD SYAFIQ</p></div>
+                        </div>
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Mechanical"><p class="name">MUHD ASYRAF</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Mechanical"><p class="name">SHIPPY NGUDAN</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Mechanical"><p class="name">EMIRUL IZUAD</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Mechanical"><p class="name">MOHD AZMI</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift B — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift B — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="width: 71px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">ELECTRICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift B — Electrical"><p class="name">HASSAN</p><p class="title">CHARGEMAN</p></div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift B — Electrical"><p class="name">MOHD AZRAF</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Electrical"><p class="name">SHAHRUL EHSAN</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Electrical"><p class="name">WAN SYAHMI</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Electrical"><p class="name">MOHD SYAFIQ</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Electrical"><p class="name">MOHD FAZREEN</p></div>
+                    </div>
+                    <div style="width: 59px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">SCREENING</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift B — Screening"><p class="name">ASREE</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Screening"><p class="name">MUHD ILTIZAM</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift B — Screening"><p class="name">MUHAMMAD NUUR</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. SHIFT C -->
+              <div style="width: 262px; display: flex; flex-direction: column; align-items: center;">
+                <div class="s6-exec-node">
+                  <div class="s6-avatar-md color-exec" style="opacity: 0.65;"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
+                  <div class="s6-exec-badge org-person-card" data-role="vacant" data-dept="Shift C Operations" style="background: #94a3b8; width: 170px;">
+                    <p class="name">VACANT</p>
+                    <p class="title">EXECUTIVE ENGINEER — SHIFT C</p>
+                  </div>
+                </div>
+                <div class="s6-stem" style="height: 6px;"></div>
+                <div class="s6-shift-card">
+                  <div style="display: flex; width: 100%; gap: 3px; align-items: flex-start;">
+                    <div style="width: 118px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">MECHANICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift C — Mechanical"><p class="name">MOHD ZAKI</p><p class="title">TECHNICAL OFFICER</p></div>
+                      <div style="display: flex; gap: 2px; width: 100%;">
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #2563eb;">SPECIALISTS</div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift C — Mechanical"><p class="name">EAW GUAN HUAT</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift C — Mechanical"><p class="name">TEONG MENG KOW</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift C — Mechanical"><p class="name">OMAR</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift C — Mechanical"><p class="name">AZIMAN</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift C — Mechanical"><p class="name">MUHAMAD FARID</p></div>
+                        </div>
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Mechanical"><p class="name">MUHD AMMAR</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Mechanical"><p class="name">M. KHAIRULAZMAN</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Mechanical"><p class="name">MOHD TAUFIK</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Mechanical"><p class="name">ZAHARI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Mechanical"><p class="name">M. AMINULLAH</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift C — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="width: 71px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">ELECTRICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift C — Electrical"><p class="name">AMIR HASSAN</p><p class="title">CHARGEMAN</p></div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift C — Electrical"><p class="name">MOHD JOHARI</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Electrical"><p class="name">M. HARITH ELYABASS</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Electrical"><p class="name">WAN SAIFUL</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Electrical"><p class="name">MOHD FIRKHAN</p></div>
+                      <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift C — Electrical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                    </div>
+                    <div style="width: 59px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">SCREENING</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift C — Screening"><p class="name">SHARIPUNNAHAR</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Screening"><p class="name">MUHD HANIF</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift C — Screening"><p class="name">MD RAZIF</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. SHIFT D -->
+              <div style="width: 262px; display: flex; flex-direction: column; align-items: center;">
+                <div class="s6-exec-node">
+                  <div class="s6-avatar-md color-exec" style="opacity: 0.65;"><div class="avatar-inner"><i class="fa-solid fa-user-gear"></i></div></div>
+                  <div class="s6-exec-badge org-person-card" data-role="vacant" data-dept="Shift D Operations" style="background: #94a3b8; width: 170px;">
+                    <p class="name">VACANT</p>
+                    <p class="title">EXECUTIVE ENGINEER — SHIFT D</p>
+                  </div>
+                </div>
+                <div class="s6-stem" style="height: 6px;"></div>
+                <div class="s6-shift-card">
+                  <div style="display: flex; width: 100%; gap: 3px; align-items: flex-start;">
+                    <div style="width: 118px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">MECHANICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift D — Mechanical"><p class="name">ZUBIR</p><p class="title">TECHNICAL OFFICER</p></div>
+                      <div style="display: flex; gap: 2px; width: 100%;">
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #2563eb;">SPECIALISTS</div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift D — Mechanical"><p class="name">ZAINI</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift D — Mechanical"><p class="name">AZMI</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift D — Mechanical"><p class="name">RUHAIZAN</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift D — Mechanical"><p class="name">SANI SYAHFI</p></div>
+                          <div class="s6-mini-pill color-specialist org-person-card" data-role="specialist" data-dept="Shift D — Mechanical"><p class="name">M. KHAIRIL IZHAM</p></div>
+                        </div>
+                        <div style="width: 50%; display: flex; flex-direction: column; gap: 1.5px;">
+                          <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Mechanical"><p class="name">MOHD RAFI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Mechanical"><p class="name">IFSAN WAHYUDI</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Mechanical"><p class="name">MUHD SYAFIQ</p></div>
+                          <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Mechanical"><p class="name">M. IRFAN IHTISYAM</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift D — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                          <div class="s6-mini-pill org-person-card" data-role="vacant" data-dept="Shift D — Mechanical" style="background: #94a3b8;"><p class="name">VACANT</p></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="width: 71px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">ELECTRICAL</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift D — Electrical"><p class="name">MUHAMAD IQBAL</p><p class="title">CHARGEMAN</p></div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift D — Electrical"><p class="name">M. SHAMSUL SUHAINI</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Electrical"><p class="name">MOHD ZARIZEE</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Electrical"><p class="name">RAHIM</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Electrical"><p class="name">MUHD NIZAM</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Electrical"><p class="name">MUHD YASSIN</p></div>
+                    </div>
+                    <div style="width: 59px; display: flex; flex-direction: column; gap: 1.5px;">
+                      <div class="s6-disc-hdr">SCREENING</div>
+                      <div class="s6-mini-pill color-techoff org-person-card" data-role="techoff" data-dept="Shift D — Screening"><p class="name">MOHAMAD FAUZI</p><p class="title">TECH. OFFICER</p></div>
+                      <div class="s6-role-lbl" style="color: #0ea5e9;">TECHNICIANS</div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Screening"><p class="name">LUQMAN HAKIM</p></div>
+                      <div class="s6-mini-pill color-technician org-person-card" data-role="technician" data-dept="Shift D — Screening"><p class="name">NURUL IMAN</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>`;
-    }
-
-    function openOrgEditor(path) {
-      return new Promise(resolve => {
-        let overlay = document.getElementById('org-edit-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'org-edit-overlay';
-          overlay.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(17,24,39,.7); z-index:999999; align-items:center; justify-content:center; backdrop-filter:blur(2px);';
-          overlay.innerHTML = `
-            <div id="acm-modal-box" style="transform:translateY(0);">
-              <div id="acm-modal-title">Edit Personnel</div>
-              <div id="acm-modal-msg" style="margin-bottom:12px;">Update details or remove this personnel.</div>
-              <label class="f">Name<input type="text" id="org-ed-name" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; font-size:.875rem; background:var(--input-bg);"/></label>
-              <label class="f">Designation / Title<textarea id="org-ed-title" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; font-size:.875rem; background:var(--input-bg); min-height:50px;"></textarea></label>
-              <label class="f">Position Level
-                <select id="org-ed-role" style="width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:8px; margin-bottom:18px; font-size:.875rem; background:var(--input-bg);">
-                  <option value="manager">Manager</option>
-                  <option value="srexec">Senior Executive</option>
-                  <option value="exec">Executive Engineer</option>
-                  <option value="techoff">Tech. Officer / Chargeman</option>
-                  <option value="specialist">Specialist</option>
-                  <option value="technician">Technician</option>
-                  <option value="vacant">Vacant</option>
-                </select>
-              </label>
-              <div id="acm-modal-actions" style="justify-content:space-between;">
-                <button class="btn btn-danger" id="org-ed-del">Remove</button>
-                <div style="display:flex; gap:8px;">
-                  <button class="btn btn-ghost" id="org-ed-cancel">Cancel</button>
-                  <button class="btn btn-primary" id="org-ed-save" style="background:var(--ok);">Save</button>
-                </div>
-              </div>
-            </div>`;
-          document.body.appendChild(overlay);
-        }
-        
-        const isArray = /\.\d+$/.test(path);
-        const obj = getByPath(state.orgData, path) || {name: '', title: '', role: 'technician'};
-        const nEl = overlay.querySelector('#org-ed-name');
-        const tEl = overlay.querySelector('#org-ed-title');
-        const rEl = overlay.querySelector('#org-ed-role');
-        const delBtn = overlay.querySelector('#org-ed-del');
-        
-        nEl.value = obj.name || '';
-        tEl.value = (obj.title || '').replace(/<br>/g, '\n');
-        rEl.value = obj.role || 'technician';
-        delBtn.style.display = isArray ? 'block' : 'none';
-        
-        const close = () => { overlay.style.display = 'none'; };
-        
-        overlay.querySelector('#org-ed-cancel').onclick = () => { close(); resolve(null); };
-        delBtn.onclick = () => { close(); resolve({ action: 'delete' }); };
-        overlay.querySelector('#org-ed-save').onclick = () => {
-          close();
-          resolve({
-            action: 'save',
-            data: {
-              name: nEl.value.trim(),
-              title: tEl.value.replace(/\n/g, '<br>').trim(),
-              role: rEl.value
-            }
-          });
-        };
-        
-        overlay.style.display = 'flex';
-        nEl.focus();
-      });
     }
 
     function renderManpowerManagement(container) {
@@ -3726,15 +4068,7 @@
               `).join('')}
             </div>
 
-            <div style="display:flex;gap:6px;align-items:center;">
-              ${state.orgEditMode ? `
-                <button type="button" class="btn btn-ghost" id="org-add-branch-btn" style="padding:4px 8px;font-size:.65rem;border:1px dashed var(--accent);color:var(--accent);"><i class="fa-solid fa-plus"></i> Add Sub-Section</button>
-                <button type="button" class="btn btn-ghost" id="org-undo-btn" style="padding:4px 8px;font-size:.65rem;border:1px solid var(--line);background:var(--paper);color:var(--text-sec);"><i class="fa-solid fa-rotate-left"></i> Undo</button>
-              ` : ''}
-              <button type="button" class="export-chart-btn" id="org-manage-btn" title="Edit Organization Chart" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid ${state.orgEditMode ? 'var(--warn)' : 'var(--line)'};font-size:.65rem;font-weight:700;color:${state.orgEditMode ? 'var(--warn)' : 'var(--text-sec)'};cursor:pointer;background:var(--bg)">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                ${state.orgEditMode ? 'Exit Edit Mode' : 'Manage Personnel'}
-              </button>
+            <div style="display:flex;gap:6px;">
               <button type="button" class="export-chart-btn" id="org-fullview-btn" title="Open Full Screen View" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>Full View</button>
               <button type="button" class="export-chart-btn" id="org-export-jpg" title="Save Section as JPEG" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg)"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>JPEG</button>
             </div>
@@ -3771,8 +4105,6 @@
               Tip: Mouse wheel to zoom • Drag to pan • Double-click to reset view • Click badge for details
             </div>
           </div>
-          
-          ${state.orgEditMode ? `<div style="background:#fef08a; color:#854d0e; padding:6px; text-align:center; font-weight:bold; font-size:12px; margin-bottom:8px; border-radius:6px; border:1px solid #ca8a04;">EDIT MODE ACTIVE — Click on any personnel to modify.</div>` : ''}
 
           <div class="org-viewport" id="org-viewport">
             <div class="org-scale-stage" id="org-scale-stage">
@@ -3847,11 +4179,6 @@
         const filteringActive = q.length > 0 || roleF !== 'ALL';
 
         cards.forEach(card => {
-          if (state.orgEditMode) {
-             card.classList.remove('org-dimmed', 'org-highlighted');
-             return; // Disable highlight filtering in edit mode
-          }
-          
           card.classList.remove('org-dimmed', 'org-highlighted');
           if (!filteringActive) return;
 
@@ -3900,7 +4227,7 @@
           const vpW = Math.max(320, vpEl.clientWidth);
           if (isMainViewport) {
             const fitScale = vpW / 1280;
-            const vpH = Math.round(stEl.scrollHeight * fitScale);
+            const vpH = Math.round(720 * fitScale);
             vpEl.style.height = vpH + 'px';
             zoom = fitScale;
             panX = 0;
@@ -4032,51 +4359,6 @@
       container.querySelector('#org-zoom-out').addEventListener('click', () => mainController.stepZoom(1 / 1.18));
       container.querySelector('#org-zoom-fit').addEventListener('click', () => mainController.resetToFit());
 
-      container.querySelector('#org-manage-btn').addEventListener('click', async () => {
-        if (state.orgEditMode) {
-          state.orgEditMode = false;
-          state.orgDataSnapshot = null;
-          render();
-          return;
-        }
-        const pass = await showModal('Admin Authentication', 'Enter admin password to manage the organization chart:', 'prompt');
-        if (pass === '133513') {
-          state.orgDataSnapshot = JSON.stringify(state.orgData);
-          state.orgEditMode = true;
-          render();
-        } else if (pass !== null) {
-          await showModal('Error', 'Incorrect password.', 'alert', true);
-        }
-      });
-
-      const undoBtn = container.querySelector('#org-undo-btn');
-      if (undoBtn) {
-        undoBtn.addEventListener('click', () => {
-          if (state.orgDataSnapshot) {
-            state.orgData = JSON.parse(state.orgDataSnapshot);
-            saveOrgDataToCloud();
-            render();
-          }
-        });
-      }
-
-      const addBranchBtn = container.querySelector('#org-add-branch-btn');
-      if (addBranchBtn) {
-        addBranchBtn.addEventListener('click', async () => {
-          const branchName = await showModal('New Sub-Section', 'Enter the name of the new sub-section:', 'prompt-text', 'New Department');
-          if (branchName) {
-            if (!state.orgData.customBranches) state.orgData.customBranches = [];
-            state.orgData.customBranches.push({
-              title: branchName,
-              lead: { name: 'VACANT', title: 'SECTION LEAD', role: 'vacant' },
-              members: []
-            });
-            saveOrgDataToCloud();
-            render();
-          }
-        });
-      }
-
       /* Role Filter Pills */
       container.querySelectorAll('[data-role-filter]').forEach(pill => {
         pill.addEventListener('click', () => {
@@ -4104,42 +4386,9 @@
       });
 
       /* Click-to-Inspect Personnel Node */
-      const handleCardClick = async (e) => {
+      const handleCardClick = (e) => {
         if (suppressCardClick) return;
         const card = e.target.closest('.org-person-card');
-        const addBtn = e.target.closest('.org-add-btn');
-        
-        if (state.orgEditMode) {
-           e.stopPropagation();
-           if (card) {
-               const editPath = card.getAttribute('data-edit-path');
-               if (editPath) {
-                 const res = await openOrgEditor(editPath);
-                 if (res) {
-                   if (res.action === 'delete') {
-                      const parts = editPath.split('.');
-                      const idx = parseInt(parts.pop());
-                      getByPath(state.orgData, parts.join('.')).splice(idx, 1);
-                   } else {
-                      setByPath(state.orgData, editPath, res.data);
-                   }
-                   saveOrgDataToCloud();
-                   render();
-                 }
-               }
-           } else if (addBtn) {
-               const addPath = addBtn.getAttribute('data-add-path');
-               if (addPath) {
-                  const arr = getByPath(state.orgData, addPath);
-                  const isSpec = addPath.toLowerCase().includes('spec');
-                  arr.push({ name: 'NEW PERSONNEL', title: '', role: isSpec ? 'specialist' : 'technician' });
-                  saveOrgDataToCloud();
-                  render();
-               }
-           }
-           return;
-        }
-        
         if (!card) return;
         e.stopPropagation();
         const nameEl = card.querySelector('.name');
