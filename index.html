@@ -1230,7 +1230,8 @@
       const nowMs = Date.now();
       const ninetyDaysMs = 90 * 86400000;
       
-      const contractRecords = filtered.filter(r => r.maintenanceType === 'Contract Management');
+	  // Removed the filter to consider all classifications
+      const contractRecords = filtered;
       contractRecords.forEach(r => {
         let st = getTs(r.startDate);
         let en = getTs(r.endDate);
