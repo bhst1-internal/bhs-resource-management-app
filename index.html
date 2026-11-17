@@ -4232,7 +4232,13 @@
               </label>
               <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
                 Section / Shift 
-                <input type="text" id="oem-sect" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+                <select id="oem-sect" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;">
+                  <option value="OFFICE HOUR">OFFICE HOUR</option>
+                  <option value="SHIFT A">SHIFT A</option>
+                  <option value="SHIFT B">SHIFT B</option>
+                  <option value="SHIFT C">SHIFT C</option>
+                  <option value="SHIFT D">SHIFT D</option>
+                </select>
               </label>
               <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
                 Position Level
@@ -4293,9 +4299,28 @@
 
       document.getElementById('oem-name').value = rawName;
       document.getElementById('oem-desig').value = desig;
-      document.getElementById('oem-sect').value = sect;
       document.getElementById('oem-level').value = origRole;
-      document.getElementById('oem-vacant').checked = role === 'vacant';
+      
+      /* Smart Fallback Dropdown Logic */
+      const sectSelect = document.getElementById('oem-sect');
+      const standardOpts = ["OFFICE HOUR", "SHIFT A", "SHIFT B", "SHIFT C", "SHIFT D"];
+      const upperSect = sect.toUpperCase();
+      if (!standardOpts.includes(upperSect) && sect.trim() !== '') {
+          const opt = document.createElement('option');
+          opt.value = sect;
+          opt.text = sect;
+          sectSelect.appendChild(opt);
+      }
+      sectSelect.value = standardOpts.includes(upperSect) ? upperSect : sect;
+
+      /* Vacant Checkbox Auto-Fill Listener */
+      const vacantCheck = document.getElementById('oem-vacant');
+      const nameInput = document.getElementById('oem-name');
+      vacantCheck.checked = role === 'vacant';
+      
+      vacantCheck.addEventListener('change', (e) => {
+          if (e.target.checked) nameInput.value = 'VACANT';
+      });
       
       overlay.style.display = 'flex';
       
@@ -4431,6 +4456,19 @@
       if (!oldName) return;
       const isGeneric = oldName.toUpperCase().includes('VACANT') || oldName.toUpperCase().includes('NEW PERSONNEL');
       
+      /* Intelligent Normalization Engine */
+      const normalizeDept = (dept) => {
+          if (!dept) return '';
+          let d = dept.toUpperCase();
+          d = d.replace('BHS MAINTENANCE — ', '');
+          d = d.replace(' OPERATIONS', '');
+          d = d.replace(' SPECIALIST', '');
+          d = d.replace(' TECHNICIAN', '');
+          d = d.replace(' PLANNING', '');
+          return d.trim();
+      };
+      const normOldDept = normalizeDept(oldDept);
+
       for (let pid in state.orgPagesHtml) {
         if (Number(pid) === sourcePageId) continue;
         const tempDiv = document.createElement('div');
@@ -4445,7 +4483,10 @@
           if (isGeneric) {
               const cDept = c.getAttribute('data-dept');
               const cRole = c.getAttribute('data-role');
-              if ((cName.toUpperCase().includes('VACANT') || cName.toUpperCase().includes('NEW PERSONNEL')) && cDept === oldDept && (cRole === oldRole || cRole === 'vacant' || oldRole === 'vacant')) {
+              /* Bridges slight naming differences using normalized string comparison */
+              if ((cName.toUpperCase().includes('VACANT') || cName.toUpperCase().includes('NEW PERSONNEL')) 
+                  && normalizeDept(cDept) === normOldDept 
+                  && (cRole === oldRole || cRole === 'vacant' || oldRole === 'vacant')) {
                   if (newData === null) c.remove();
                   else updateCardDOM(c, newData);
                   modified = true;
