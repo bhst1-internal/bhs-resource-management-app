@@ -4227,8 +4227,24 @@
                 <input type="text" id="oem-name" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
               </label>
               <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
-                Title 
-                <input type="text" id="oem-title" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+                Designation 
+                <input type="text" id="oem-desig" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
+                Section / Shift 
+                <input type="text" id="oem-sect" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;"/>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--ink-light); font-weight:600;">
+                Position Level
+                <select id="oem-level" style="padding:8px 11px; border:1px solid var(--line); border-radius:8px; font-size:.875rem; font-family:inherit; color:var(--ink); background:var(--input-bg); outline:none;">
+                  <option value="manager">Manager</option>
+                  <option value="srexec">Senior Executive</option>
+                  <option value="exec">Executive Engineer</option>
+                  <option value="techoff">Technical Officer</option>
+                  <option value="chargeman">Chargeman</option>
+                  <option value="specialist">Specialist</option>
+                  <option value="technician">Technician</option>
+                </select>
               </label>
               <label style="display:flex; align-items:center; gap:6px; font-size:.75rem; font-weight:600; color:var(--ink-light); cursor:pointer; margin-top:4px;">
                 <input type="checkbox" id="oem-vacant" style="width:16px; height:16px; accent-color:var(--accent);"/> Position is Vacant
@@ -4248,9 +4264,38 @@
       
       const nEl = card.querySelector('.name');
       const tEl = card.querySelector('.title');
-      document.getElementById('oem-name').value = nEl ? nEl.innerText.replace(/\n/g, ' ') : '';
-      document.getElementById('oem-title').value = tEl ? tEl.innerText.replace(/\n/g, ' ') : '';
-      document.getElementById('oem-vacant').checked = card.getAttribute('data-role') === 'vacant';
+      
+      let rawName = nEl ? nEl.innerHTML.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]*>?/gm, '').trim() : '';
+      if (rawName.toUpperCase().startsWith('VACANT') && rawName.length > 6) {
+          rawName = rawName.substring(6).trim();
+      } else if (rawName.toUpperCase() === 'VACANT') {
+          rawName = '';
+      }
+      
+      let desig = '';
+      let sect = '';
+      if (tEl) {
+          const parts = tEl.innerHTML.split(/<br\s*\/?>/i);
+          desig = (parts[0] || '').trim();
+          sect = (parts.slice(1).join(' ') || '').trim();
+      }
+      
+      const role = card.getAttribute('data-role');
+      let origRole = role;
+      if (role === 'vacant') {
+          origRole = card.getAttribute('data-orig-role');
+          if (!origRole) {
+              const match = card.className.match(/color-(\w+)/);
+              if (match) origRole = match[1];
+          }
+          if (!origRole) origRole = 'techoff';
+      }
+
+      document.getElementById('oem-name').value = rawName;
+      document.getElementById('oem-desig').value = desig;
+      document.getElementById('oem-sect').value = sect;
+      document.getElementById('oem-level').value = origRole;
+      document.getElementById('oem-vacant').checked = role === 'vacant';
       
       overlay.style.display = 'flex';
       
@@ -4260,7 +4305,9 @@
         overlay.style.display = 'none';
         onSave({
           name: document.getElementById('oem-name').value,
-          title: document.getElementById('oem-title').value,
+          desig: document.getElementById('oem-desig').value,
+          sect: document.getElementById('oem-sect').value,
+          level: document.getElementById('oem-level').value,
           vacant: document.getElementById('oem-vacant').checked
         });
       };
@@ -4269,22 +4316,43 @@
     function updateCardDOM(c, data) {
       const nEl = c.querySelector('.name');
       const tEl = c.querySelector('.title');
-      if (nEl) nEl.textContent = data.name;
-      if (tEl) tEl.innerHTML = data.title.replace(/\n/g, '<br>');
+      
+      let dispName = data.name || 'NEW PERSONNEL';
+      let dispTitleHTML = '';
+      if (data.desig && data.sect) dispTitleHTML = data.desig + '<br>' + data.sect;
+      else if (data.desig) dispTitleHTML = data.desig;
+      else if (data.sect) dispTitleHTML = data.sect;
       
       if (data.vacant) {
         c.style.background = '#94a3b8';
-        const match = c.className.match(/color-\w+/);
-        if (match) c.setAttribute('data-orig-color', match[0]);
         c.className = c.className.replace(/color-\w+/g, '').trim();
         c.setAttribute('data-role', 'vacant');
-        if (nEl && nEl.textContent !== 'VACANT') nEl.innerHTML = 'VACANT<br>' + data.name;
+        c.setAttribute('data-orig-role', data.level);
+        if (nEl) {
+           if (dispName && dispName !== 'NEW PERSONNEL' && dispName.toUpperCase() !== 'VACANT') {
+               nEl.innerHTML = 'VACANT<br>' + dispName;
+           } else {
+               nEl.innerHTML = 'VACANT';
+           }
+        }
+        if (tEl) tEl.innerHTML = dispTitleHTML;
       } else {
         c.style.background = '';
-        const origColor = c.getAttribute('data-orig-color') || 'color-techoff';
-        if (!c.className.includes(origColor)) c.classList.add(origColor);
-        c.setAttribute('data-role', origColor.replace('color-', ''));
-        if (nEl && nEl.textContent.startsWith('VACANT')) nEl.textContent = data.name;
+        c.className = c.className.replace(/color-\w+/g, '').trim();
+        c.classList.add('color-' + data.level);
+        c.setAttribute('data-role', data.level);
+        c.setAttribute('data-orig-role', data.level);
+        
+        if (nEl) nEl.textContent = dispName;
+        
+        if (tEl) {
+           tEl.innerHTML = dispTitleHTML;
+        } else if (dispTitleHTML && !c.classList.contains('badge-simple') && !c.classList.contains('s6-pill-sm') && !c.classList.contains('s6-mini-pill')) {
+           const p = document.createElement('p');
+           p.className = 'title';
+           p.innerHTML = dispTitleHTML;
+           c.appendChild(p);
+        }
       }
     }
 
@@ -4359,20 +4427,38 @@
       });
     }
 
-    function syncOtherPages(sourcePageId, oldName, newData) {
+    function syncOtherPages(sourcePageId, oldName, newData, oldDept, oldRole) {
       if (!oldName) return;
+      const isGeneric = oldName.toUpperCase().includes('VACANT') || oldName.toUpperCase().includes('NEW PERSONNEL');
+      
       for (let pid in state.orgPagesHtml) {
         if (Number(pid) === sourcePageId) continue;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = state.orgPagesHtml[pid];
         let modified = false;
-        tempDiv.querySelectorAll('.org-person-card').forEach(c => {
+        
+        const cards = Array.from(tempDiv.querySelectorAll('.org-person-card'));
+        for (let c of cards) {
           const nEl = c.querySelector('.name');
-          if (nEl && nEl.innerText.trim() === oldName) {
-            updateCardDOM(c, newData);
-            modified = true;
+          const cName = nEl ? nEl.innerText.trim() : '';
+          
+          if (isGeneric) {
+              const cDept = c.getAttribute('data-dept');
+              const cRole = c.getAttribute('data-role');
+              if ((cName.toUpperCase().includes('VACANT') || cName.toUpperCase().includes('NEW PERSONNEL')) && cDept === oldDept && (cRole === oldRole || cRole === 'vacant' || oldRole === 'vacant')) {
+                  if (newData === null) c.remove();
+                  else updateCardDOM(c, newData);
+                  modified = true;
+                  break; // Only update one generic matching node per page
+              }
+          } else {
+              if (cName === oldName) {
+                  if (newData === null) c.remove();
+                  else updateCardDOM(c, newData);
+                  modified = true;
+              }
           }
-        });
+        }
         if (modified) state.orgPagesHtml[pid] = tempDiv.innerHTML;
       }
     }
@@ -4835,21 +4921,24 @@
         e.stopPropagation();
 
         if (state.orgEditMode) {
+           const oldRole = card.getAttribute('data-role');
+           const oldDept = card.getAttribute('data-dept');
+           const nEl = card.querySelector('.name');
+           const oldName = nEl ? nEl.innerText.trim() : '';
+           
            showOrgEditModal(card, 
              (newData) => {
                 state.orgUndoStack.push(JSON.parse(JSON.stringify(state.orgPagesHtml)));
                 const undoBtn = document.getElementById('org-undo-btn');
                 if (undoBtn) undoBtn.style.display = 'inline-flex';
                 
-                const nEl = card.querySelector('.name');
-                const oldName = nEl ? nEl.innerText.trim() : '';
                 updateCardDOM(card, newData);
                 
                 const stage = document.getElementById('org-scale-stage');
                 removeEditControls(stage);
                 state.orgPagesHtml[state.orgPage] = stage.innerHTML;
                 
-                syncOtherPages(state.orgPage, oldName, newData);
+                syncOtherPages(state.orgPage, oldName, newData, oldDept, oldRole);
                 injectEditControls(stage);
                 updateOrgKPIs();
              }, 
@@ -4858,30 +4947,12 @@
                 const undoBtn = document.getElementById('org-undo-btn');
                 if (undoBtn) undoBtn.style.display = 'inline-flex';
                 
-                const nEl = card.querySelector('.name');
-                const oldName = nEl ? nEl.innerText.trim() : '';
-                
                 card.remove();
                 const stage = document.getElementById('org-scale-stage');
                 removeEditControls(stage);
                 state.orgPagesHtml[state.orgPage] = stage.innerHTML;
                 
-                if (oldName && !oldName.includes('VACANT') && !oldName.includes('NEW PERSONNEL')) {
-                  for (let pid in state.orgPagesHtml) {
-                    if (Number(pid) === state.orgPage) continue;
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = state.orgPagesHtml[pid];
-                    let modified = false;
-                    tempDiv.querySelectorAll('.org-person-card').forEach(c => {
-                      const cn = c.querySelector('.name');
-                      if (cn && cn.innerText.trim() === oldName) {
-                        c.remove();
-                        modified = true;
-                      }
-                    });
-                    if (modified) state.orgPagesHtml[pid] = tempDiv.innerHTML;
-                  }
-                }
+                syncOtherPages(state.orgPage, oldName, null, oldDept, oldRole);
                 injectEditControls(stage);
                 updateOrgKPIs();
              });
