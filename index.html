@@ -746,6 +746,9 @@
     const MAIN_CAT_OPTIONS = ['Conveyor Line', 'Vehicle', 'Equipment/Tool', 'Facility', 'Maintenance', 'Other'];
     const VENDOR_OPTS = ['OMNI', 'CPT', 'SD Prima', 'CPT Kauffman', 'ABS', 'CTwo Engineering', 'Syswin', 'Other'];
     const CLASSIFICATION_OPTS = ['Manpower Management', 'Contract Management', 'Cost & Budget Management', 'Vendor Management'];
+    const L1_AREA_ALL = ['All', 'MTB', 'SAT'];
+    const L2_SUBAREA_ALL = ['All', 'Check In', 'Reclaim', 'Final Sorter', 'Hot Transfer', 'Transfer Sorter', 'Breakdown', 'Tunnel', 'Main Sorter'];
+    const L3_NO_ALL = ['All', 'BM3', 'BM4', 'BT3', 'BT6', 'CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8','CH9','CH10','CH11','CH12','CL1','CL2','CL3','CL4','CL5','CL6','CL7','CL8','CL9','CL10','CL11','CL12','FS1','FS2','FS3','FS4','HTA','HTB','HTC','HTD','HTE','HTF','TS1','TS2','BR1','BR2','BR3','BR4','BR5','BR6','BR7','BR8','BR9','BR10','BR11','BR12','BR13','BR14','BR15','BR16','BR17','BR18','BR19','BR20','BR21','BR22','BR23','BR24','NN1','NN2','NN3','NN4','NN5','NN6','NN7','NN8','MS1','MS2'];
 
     const BLANK_TABS = ['Cost & Budget Management'];
     const ALL_TABS = ['Dashboard', 'Manpower Management', 'Record Input', 'Contract Management', 'Vendor Management', 'Cost & Budget Management'];
@@ -1054,10 +1057,10 @@
       const startTs = sDate ? getTs(sDate) : 0;
       const endTs = eDate ? (getTs(eDate) + 86400000) : Infinity;
 
-      return state.records.filter(r => !r.isDraft).filter(r => {
-        const t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy);
-        if ((sDate || eDate) && (!t || t < startTs || t >= endTs)) return false;
+      return state.records.filter(r => {
+        if (r.isDraft) return false;
         if (selClass.length && !selClass.includes(r.maintenanceType)) return false;
+        if (selDur.length && !selDur.includes(r.contractDuration)) return false;
         if (selCrit.length) {
           let igBase = r.issuedGroup || '';
           if (igBase.toUpperCase().startsWith('OTHER:')) igBase = 'Other';
@@ -1068,7 +1071,8 @@
           let vBase = r.vendorNameBase || '';
           if (!selVendor.includes(vBase)) return false;
         }
-        if (selDur.length && !selDur.includes(r.contractDuration)) return false;
+        const t = getTs(r.happeningDate) || getOldTs(r.dd, r.mm, r.yy);
+        if ((sDate || eDate) && (!t || t < startTs || t >= endTs)) return false;
         return true;
       });
     }
@@ -1209,12 +1213,15 @@
       const totalCompletionRate = k.total === 0 ? null : Math.round((k.completedCount / k.total) * 100);
 
       /* Calculate Live Manpower KPIs from the Master Chart (Page 6) */
-      const tempOrg = document.createElement('div');
-      tempOrg.innerHTML = getOrgPageMarkup(6);
-      const orgNodes = Array.from(tempOrg.querySelectorAll('.org-person-card'));
-      const totalOrg = orgNodes.length;
-      const vacantOrg = orgNodes.filter(n => n.getAttribute('data-role') === 'vacant').length;
-      const filledOrg = totalOrg - vacantOrg;
+      let totalOrg = 0, vacantOrg = 0, filledOrg = 0;
+      const htmlPage6 = getOrgPageMarkup(6);
+      const totalMatch = htmlPage6.match(/org-person-card/g);
+      if (totalMatch) {
+          totalOrg = totalMatch.length;
+          const vacantMatch = htmlPage6.match(/data-role="vacant"/g);
+          vacantOrg = vacantMatch ? vacantMatch.length : 0;
+          filledOrg = totalOrg - vacantOrg;
+      }
       const manningRate = totalOrg > 0 ? Math.round((filledOrg / totalOrg) * 100) : 0;
 
       /* Calculate Contract Management KPIs */
@@ -1343,12 +1350,18 @@
           if (tooltip) tooltip.classList.remove('show');
       });
 
+      let canvasRect = null;
+      canvas.addEventListener('pointerenter', () => { canvasRect = canvas.getBoundingClientRect(); });
+      canvas.addEventListener('pointerleave', () => { canvasRect = null; });
+      window.addEventListener('resize', () => { canvasRect = null; });
+
       canvas.addEventListener('pointermove', e => {
           const chartInstance = Chart.getChart(canvas);
           if (!chartInstance) return;
 
           if (canvas.dataset.isDragging !== "true" && tooltip) {
-              const rect = canvas.getBoundingClientRect();
+              const rect = canvasRect || canvas.getBoundingClientRect();
+              if (!canvasRect) canvasRect = rect;
               const x = e.clientX - rect.left;
               const y = e.clientY - rect.top;
               const xAxis = chartInstance.scales.x;
@@ -1996,10 +2009,6 @@
 
       let curCat = igBase || ''; 
       let dynamicSection = '';
-      
-      const L1_AREA_ALL = ['All', 'MTB', 'SAT'];
-      const L2_SUBAREA_ALL = ['All', 'Check In', 'Reclaim', 'Final Sorter', 'Hot Transfer', 'Transfer Sorter', 'Breakdown', 'Tunnel', 'Main Sorter'];
-      const L3_NO_ALL = ['All', 'BM3', 'BM4', 'BT3', 'BT6', 'CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8','CH9','CH10','CH11','CH12','CL1','CL2','CL3','CL4','CL5','CL6','CL7','CL8','CL9','CL10','CL11','CL12','FS1','FS2','FS3','FS4','HTA','HTB','HTC','HTD','HTE','HTF','TS1','TS2','BR1','BR2','BR3','BR4','BR5','BR6','BR7','BR8','BR9','BR10','BR11','BR12','BR13','BR14','BR15','BR16','BR17','BR18','BR19','BR20','BR21','BR22','BR23','BR24','NN1','NN2','NN3','NN4','NN5','NN6','NN7','NN8','MS1','MS2'];
       
       let l1OptsArea = L1_AREA_ALL;
       let l2OptsArea = L2_SUBAREA_ALL.filter(item => {
@@ -4476,9 +4485,12 @@
 
       /* Compute Headcount KPIs dynamically from the rendered org nodes */
       function updateOrgKPIs() {
-        const nodes = canvasEl ? Array.from(canvasEl.querySelectorAll('.org-person-card')) : [];
+        const nodes = canvasEl ? canvasEl.getElementsByClassName('org-person-card') : [];
         const total = nodes.length;
-        const vacant = nodes.filter(n => n.getAttribute('data-role') === 'vacant').length;
+        let vacant = 0;
+        for (let i = 0; i < total; i++) {
+            if (nodes[i].getAttribute('data-role') === 'vacant') vacant++;
+        }
         const filled = total - vacant;
         const fillRate = total > 0 ? Math.round((filled / total) * 100) : 0;
 
@@ -4507,13 +4519,14 @@
         const matchEl = container.querySelector('#org-match-count');
         if (clearBtn) clearBtn.style.display = q.length > 0 ? 'block' : 'none';
 
-        const cards = Array.from(canvasEl.querySelectorAll('.org-person-card'));
+        const cards = canvasEl.getElementsByClassName('org-person-card');
         let matches = 0;
         const filteringActive = q.length > 0 || roleF !== 'ALL';
 
-        cards.forEach(card => {
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
           card.classList.remove('org-dimmed', 'org-highlighted');
-          if (!filteringActive) return;
+          if (!filteringActive) continue;
 
           const txt = (card.textContent || '').toLowerCase();
           const dept = (card.getAttribute('data-dept') || '').toLowerCase();
@@ -4528,7 +4541,7 @@
           } else {
             card.classList.add('org-dimmed');
           }
-        });
+        }
 
         if (matchEl) {
           matchEl.textContent = filteringActive ? `${matches} match${matches === 1 ? '' : 'es'}` : '';
