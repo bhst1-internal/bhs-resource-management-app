@@ -936,6 +936,14 @@
           validData.push(g);
         });
 
+        if (!state.orgPagesHtml) state.orgPagesHtml = {};
+        validData.forEach(g => {
+            if (g.reportNo && String(g.reportNo).startsWith('SYS-ORG-CHART-') && g.reasonDetail) {
+                const pid = g.reportNo.split('-').pop();
+                state.orgPagesHtml[pid] = g.reasonDetail;
+            }
+        });
+
         const drafts = state.records.filter(r => r.isDraft);
         const cloudIds = new Set(validData.map(g => String(g.createdAt)));
         const localOffline = state.records.filter(r => !r.isDraft && !cloudIds.has(String(r.createdAt)));
@@ -1058,7 +1066,7 @@
       const endTs = eDate ? (getTs(eDate) + 86400000) : Infinity;
 
       return state.records.filter(r => {
-        if (r.isDraft) return false;
+        if (r.isDraft || r.maintenanceType === 'System_Config') return false;
         if (selClass.length && !selClass.includes(r.maintenanceType)) return false;
         if (selDur.length && !selDur.includes(r.contractDuration)) return false;
         if (selCrit.length) {
@@ -1230,7 +1238,7 @@
       const nowMs = Date.now();
       const ninetyDaysMs = 90 * 86400000;
       
-	  // Removed the filter to consider all classifications
+      // Removed the filter to consider all classifications
       const contractRecords = filtered;
       contractRecords.forEach(r => {
         let st = getTs(r.startDate);
@@ -1999,7 +2007,7 @@
       }
       if (!state.isDirty) state.cleanActiveRecord = JSON.parse(JSON.stringify(r));
 
-      const options = state.records.slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
+      const options = state.records.filter(x => x.maintenanceType !== 'System_Config').slice().sort((a,b)=>b.createdAt-a.createdAt).map(x => `<option value="${x.createdAt}" ${String(x.createdAt)===String(r.createdAt)?'selected':''}>${x.isDraft?'[Draft] ':''}BHS/Record ${x.reportNo||'N/A'}</option>`).join('');
       
       let igBase = r.issuedGroup||'', igOther = ''; 
       if(igBase.toUpperCase().startsWith('OTHER:')){ igBase = 'Other'; igOther = (r.issuedGroup||'').substring(6).trim(); } 
@@ -2282,8 +2290,9 @@
        CONTRACT MANAGEMENT MODULE
        ========================================================================= */
     function renderContractManagement(container) {
-      const contracts = state.records.filter(r => !r.isDraft).sort((a, b) => b.createdAt - a.createdAt);
+      const contracts = state.records.filter(r => !r.isDraft && r.maintenanceType !== 'System_Config' && r.maintenanceType !== 'Vendor Management').sort((a, b) => b.createdAt - a.createdAt);
       let r = state.records.find(x => String(x.createdAt) === String(state.activeId));
+      if (r && r.maintenanceType === 'System_Config') r = null;
       if (!r) {
         r = contracts.length ? contracts[0] : null;
         if (r) state.activeId = String(r.createdAt);
@@ -4748,13 +4757,53 @@
           });
         }
       } else {
-        container.querySelector('#org-exit-edit-btn').addEventListener('click', () => {
+        container.querySelector('#org-exit-edit-btn').addEventListener('click', async () => {
           state.orgEditMode = false;
           const stage = document.getElementById('org-scale-stage');
           removeEditControls(stage);
           state.orgPagesHtml[state.orgPage] = stage.innerHTML;
           saveRecords();
-          render();
+
+          const btn = container.querySelector('#org-exit-edit-btn');
+          const ogTxt = btn.innerHTML;
+          btn.innerHTML = 'Saving to Cloud ⏳';
+          btn.style.pointerEvents = 'none';
+
+          try {
+            const promises = [];
+            for (let pid in state.orgPagesHtml) {
+              let recId = 'SYS-ORG-CHART-' + pid;
+              let orgRecord = state.records.find(r => r.reportNo === recId);
+              if (!orgRecord) {
+                orgRecord = blankRecord();
+                orgRecord.reportNo = recId;
+                orgRecord.maintenanceType = 'System_Config';
+                orgRecord.title = 'Org Chart Page ' + pid;
+                state.records.push(orgRecord);
+              }
+              // Compress the HTML slightly to comfortably fit within Google Sheet cell limits
+              orgRecord.reasonDetail = state.orgPagesHtml[pid].replace(/>\s+</g, '><'); 
+              orgRecord.updatedAt = Date.now();
+              
+              promises.push(fetch(WEB_APP_URL, { 
+                  method: 'POST', 
+                  mode: 'no-cors', 
+                  body: new URLSearchParams({ payload: JSON.stringify(orgRecord) }) 
+              }));
+            }
+            
+            await Promise.all(promises);
+            setTimeout(async () => {
+              await showModal("Success", "Organization chart saved to Google Sheets!", "alert");
+              render();
+            }, 800);
+          } catch (e) {
+            console.error(e);
+            await showModal("Error", "Saved locally, but failed to sync to cloud.", "alert", true);
+            btn.innerHTML = ogTxt;
+            btn.style.pointerEvents = 'auto';
+            render();
+          }
         });
         
         container.querySelector('#org-undo-btn').addEventListener('click', () => {
