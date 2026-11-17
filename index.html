@@ -1312,17 +1312,204 @@
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-        }).catch(err => {
-          console.error(err);
-          btn.style.display = originalDisplay;
-          if (toolbar) toolbar.style.display = 'flex';
-        });
+      }).catch(err => {
+        console.error(err);
+        btn.style.display = originalDisplay;
+        if (toolbar) toolbar.style.display = 'flex';
       });
-    }
+    });
+  }
 
-    function createTimelineChart(ctx) {
-      return new Chart(ctx, {
-        type: 'bar',
+  window.enablePan = function(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || canvas.dataset.panEnabled) return;
+      canvas.dataset.panEnabled = "true";
+
+      let startX, startY, initXMin, initXMax, initYMin, initYMax;
+      const tooltip = document.getElementById('acm-custom-tooltip');
+
+      canvas.addEventListener('pointerdown', e => {
+          const chartInstance = Chart.getChart(canvas);
+          if (!chartInstance) return;
+          canvas.setPointerCapture(e.pointerId);
+          startX = e.clientX;
+          startY = e.clientY;
+          initXMin = chartInstance.options.scales.x.min ?? chartInstance.scales.x.min;
+          initXMax = chartInstance.options.scales.x.max ?? chartInstance.scales.x.max;
+          initYMin = chartInstance.options.scales.y.min || 0;
+          initYMax = chartInstance.options.scales.y.max !== undefined ? chartInstance.options.scales.y.max : (chartInstance.data.labels.length - 1);
+          canvas.style.cursor = 'grabbing';
+          canvas.dataset.isDragging = "true";
+          if (tooltip) tooltip.classList.remove('show');
+      });
+
+      canvas.addEventListener('pointermove', e => {
+          const chartInstance = Chart.getChart(canvas);
+          if (!chartInstance) return;
+
+          if (canvas.dataset.isDragging !== "true" && tooltip) {
+              const rect = canvas.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              const xAxis = chartInstance.scales.x;
+              const yAxis = chartInstance.scales.y;
+              let showTooltip = false, html = '';
+
+              if (x >= 0 && x <= yAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
+                  const val = yAxis.getValueForPixel(y);
+                  if (val >= 0 && val < chartInstance.data.labels.length) {
+                      const labelStr = chartInstance.data.labels[val];
+                      const rawData = [...(chartInstance.data._masterDone||[]), ...(chartInstance.data._masterProg||[]), ...(chartInstance.data._masterOpen||[])].find(d => d.y === labelStr);
+                      if (rawData && rawData._r) {
+                          html = buildRecordTooltip(rawData._r);
+                          showTooltip = true;
+                      }
+                  }
+              } else if (x > yAxis.right && x <= xAxis.right && y >= yAxis.top && y <= yAxis.bottom) {
+                  const val = yAxis.getValueForPixel(y);
+                  const time = xAxis.getValueForPixel(x);
+                  const labelStr = chartInstance.data.labels[val];
+
+                  if (labelStr && chartInstance.data._masterMilestones) {
+                      const msPerPx = (xAxis.max - xAxis.min) / xAxis.width;
+                      const threshold = msPerPx * 15;
+                      const yTargetPx = yAxis.getPixelForValue(val);
+
+                      if (Math.abs(y - yTargetPx) < 15) {
+                          const milestones = chartInstance.data._masterMilestones.filter(m => m.y === labelStr);
+                          for (let m of milestones) {
+                              if (Math.abs(m.t - time) < threshold) {
+                                  html = buildMilestoneTooltip(m);
+                                  showTooltip = true;
+                                  break;
+                              }
+                          }
+                      }
+                  }
+              }
+
+              if (showTooltip) {
+                  tooltip.innerHTML = html;
+                  tooltip.classList.add('show');
+                  tooltip.style.display = 'block';
+                  tooltip.style.left = (e.clientX + 15) + 'px';
+                  tooltip.style.top = (e.clientY + 15) + 'px';
+              } else {
+                  tooltip.classList.remove('show');
+                  setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
+              }
+          }
+
+          if (!canvas.hasPointerCapture(e.pointerId) || canvas.dataset.isDragging !== "true") return;
+
+          const diffX = e.clientX - startX;
+          const diffY = e.clientY - startY;
+
+          const xAxis = chartInstance.scales.x;
+          const msPerPx = (initXMax - initXMin) / xAxis.width;
+          chartInstance.options.scales.x.min = initXMin - (diffX * msPerPx);
+          chartInstance.options.scales.x.max = initXMax - (diffX * msPerPx);
+
+          const yAxis = chartInstance.scales.y;
+          const labelsLen = chartInstance.data.labels.length;
+          if (labelsLen > 0) {
+              const visibleCount = initYMax - initYMin + 1;
+              const pxPerItem = yAxis.height / visibleCount;
+              let shiftY = -Math.round(diffY / pxPerItem);
+
+              let newMin = initYMin + shiftY;
+              let newMax = initYMax + shiftY;
+
+              if (newMin < 0) {
+                  newMax -= newMin;
+                  newMin = 0;
+              }
+              if (newMax >= labelsLen) {
+                  const excess = newMax - (labelsLen - 1);
+                  newMin -= excess;
+                  newMax = labelsLen - 1;
+                  if (newMin < 0) newMin = 0;
+              }
+              chartInstance.options.scales.y.min = newMin;
+              chartInstance.options.scales.y.max = newMax;
+          }
+          chartInstance.update('none');
+      });
+
+      canvas.addEventListener('pointerup', e => {
+          canvas.releasePointerCapture(e.pointerId);
+          canvas.style.cursor = 'grab';
+          canvas.dataset.isDragging = "false";
+      });
+
+      canvas.addEventListener('pointerleave', () => {
+          if (tooltip) {
+              tooltip.classList.remove('show');
+              setTimeout(() => { if (!tooltip.classList.contains('show')) tooltip.style.display = 'none'; }, 150);
+          }
+      });
+
+      canvas.addEventListener('wheel', e => {
+          e.preventDefault();
+          const chartInstance = Chart.getChart(canvas);
+          if (!chartInstance) return;
+
+          const zoomIntensity = 0.1;
+          const zoomDir = e.deltaY < 0 ? 1 : -1;
+          const xAxis = chartInstance.scales.x;
+          const yAxis = chartInstance.scales.y;
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+
+          let curXMin = chartInstance.options.scales.x.min ?? xAxis.min;
+          let curXMax = chartInstance.options.scales.x.max ?? xAxis.max;
+          const xRange = curXMax - curXMin;
+          const xRatio = Math.max(0, Math.min(1, (mouseX - xAxis.left) / xAxis.width));
+          const xDelta = xRange * zoomIntensity * zoomDir;
+
+          chartInstance.options.scales.x.min = curXMin + xDelta * xRatio;
+          chartInstance.options.scales.x.max = curXMax - xDelta * (1 - xRatio);
+
+          const labelsLen = chartInstance.data.labels.length;
+          if (labelsLen > 0) {
+              let curYMin = chartInstance.options.scales.y.min ?? 0;
+              let curYMax = chartInstance.options.scales.y.max ?? (labelsLen - 1);
+              const yRange = curYMax - curYMin;
+
+              if (zoomDir === -1 && curYMin <= 0 && curYMax >= labelsLen - 1) {
+              } else {
+                  const yRatio = Math.max(0, Math.min(1, (mouseY - yAxis.top) / yAxis.height));
+                  const yDelta = Math.max(1, yRange * zoomIntensity) * zoomDir;
+
+                  let newYMin = curYMin + yDelta * yRatio;
+                  let newYMax = curYMax - yDelta * (1 - yRatio);
+
+                  if (zoomDir === -1) {
+                      if (newYMin < 0) { newYMax -= newYMin; newYMin = 0; }
+                      if (newYMax >= labelsLen) { newYMin -= (newYMax - (labelsLen - 1)); newYMax = labelsLen - 1; if (newYMin < 0) newYMin = 0; }
+                  }
+
+                  if (newYMax - newYMin >= 1) { 
+                      chartInstance.options.scales.y.min = Math.max(0, Math.floor(newYMin));
+                      chartInstance.options.scales.y.max = Math.min(labelsLen - 1, Math.ceil(newYMax));
+                  }
+              }
+          }
+          chartInstance.update('none');
+      }, { passive: false });
+
+      canvas.addEventListener('dblclick', () => {
+          if (canvasId === 'cm-timeline-chart') updateCMUI();
+          else if (canvasId === 'cm-timeline-full-chart') document.getElementById('cm-full-view-btn').click();
+      });
+
+      canvas.style.cursor = 'grab';
+  };
+
+  function createTimelineChart(ctx) {
+    return new Chart(ctx, {
+      type: 'bar',
         plugins: [{
           id: 'customCanvasBackgroundColor',
           beforeDraw: (chart, args, options) => {
@@ -2309,7 +2496,7 @@
 
         clmSec = `<div class="sec">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div class="sec-title" style="margin:0">Contract Lifecycle Management (CLM) - ${r.reportNo}</div>
+                <div class="sec-title" style="margin:0">Contract Lifecycle Management (CLM) : <span style="color:var(--accent);">${r.reportNo}</span></div>
                 <div style="display:flex; gap: 8px;">
                     <button class="btn btn-ghost" id="contract-toggle-table-btn" style="padding:4px 10px;font-size:.75rem">${toggleBtnText}</button>
                     <button class="btn btn-primary" id="clm-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save CLM Updates ✔</button>
@@ -2757,7 +2944,7 @@
 
         slaSec = `<div class="sec">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-                <div class="sec-title" style="margin:0">SLA &amp; KPI Details - ${r.reportNo}</div>
+                <div class="sec-title" style="margin:0">SLA &amp; KPI Details : <span style="color:var(--accent);">${r.reportNo}</span></div>
                 <div style="display:flex; gap: 8px;">
                     <button class="btn btn-ghost" id="vendor-toggle-table-btn" style="padding:4px 10px;font-size:.75rem">${toggleBtnText}</button>
                     <button class="btn btn-primary" id="vendor-submit-btn" style="background:var(--ok);padding:4px 10px;font-size:.75rem">Save SLA Updates ✔</button>
