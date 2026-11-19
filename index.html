@@ -2303,6 +2303,7 @@
       const rows = contracts.map(c => {
         const isActive = r && String(c.createdAt) === String(r.createdAt);
         let latestStatus = 'N/A';
+        
         if (c.clm) {
           if (c.clm.renewal && c.clm.renewal.status) {
             latestStatus = c.clm.renewal.status;
@@ -2318,19 +2319,22 @@
             latestStatus = getLatest(c.clm.creation);
           }
         }
+        
+        let chipClass = 'chip-open';
+        if (['Signed', 'Agreed', 'Draft Finalized', 'Active', 'Renewed', 'Completed'].includes(latestStatus)) chipClass = 'chip-done';
+        else if (['Hold', 'Breach', 'Terminated', 'Expired', 'Not Met'].includes(latestStatus)) chipClass = 'chip-crit';
+        else if (['In Progress', 'Pending', 'Initial Draft'].includes(latestStatus)) chipClass = 'chip-progress';
+
         const vendorDisp = c.vendorNameBase === 'Other' ? (c.vendorNameOther || 'Other') : (c.vendorNameBase || '—');
-        const monitoringCount = c.vendorMonitoring ? c.vendorMonitoring.length : 0;
 
         return `<tr style="${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-contract" data-id="${c.createdAt}">
             <td><span class="mono-font" style="color:var(--accent);font-weight:700">${c.reportNo || '—'}</span></td>
             <td>${c.title || '—'}</td>
-            <td>${c.maintenanceType || '—'}</td>
             <td>${c.issuedGroup || '—'}</td>
             <td>${vendorDisp}</td>
-            <td>${fmtDate(c)}</td>
-            <td>${c.ecd ? fmtDate({ happeningDate: c.ecd }) : '—'}</td>
-            <td style="text-align:center;font-weight:700;color:var(--ink-light)">${monitoringCount}</td>
-            <td><span class="status-chip chip-open">${latestStatus}</span></td>
+            <td>${c.startDate ? fmtDate({ happeningDate: c.startDate }) : '—'}</td>
+            <td>${c.endDate ? fmtDate({ happeningDate: c.endDate }) : '—'}</td>
+            <td><span class="status-chip ${chipClass}">${latestStatus}</span></td>
         </tr>`;
       }).join('');
 
@@ -2414,48 +2418,24 @@
       const listSec = `<div class="sec" style="margin-top:20px">
           <div class="sec-title" id="cm-toggle-contract-list" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
             <span>Contract List</span>
-            <span id="cm-cl-icon" style="font-size:10px;">▲</span>
+            <span id="cm-cl-icon" style="font-size:10px;">▼</span>
           </div>
-          <div class="table-panel" id="cm-contract-list-wrapper" style="padding:0;border:none;display:block;margin-top:10px;">
-              ${contracts.length === 0 ? `<div class="empty-state">No records found for the selected period.</div>` :
-              `<table class="list"><thead><tr><th>Record No.</th><th>Title</th><th>Criteria</th><th>Vendor</th><th>Start Date</th><th>End Date</th><th>CLM Status</th></tr></thead><tbody>
-              ${contracts.map(c => {
-                  const isActive = r && String(c.createdAt) === String(r.createdAt);
-                  let latestStatus = 'N/A';
-                  if (c.clm) {
-                    if (c.clm.renewal && c.clm.renewal.status) {
-                      latestStatus = c.clm.renewal.status;
-                    } else if (c.vendorMonitoring && c.vendorMonitoring.length > 0) {
-                      const lastHist = c.vendorMonitoring[c.vendorMonitoring.length - 1];
-                      const hasNotMet = lastHist.metrics && lastHist.metrics.some(m => m.status === 'Not Met');
-                      latestStatus = hasNotMet ? 'Breach' : 'Active';
-                    } else if (getLatest(c.clm.approval)) {
-                      latestStatus = getLatest(c.clm.approval);
-                    } else if (getLatest(c.clm.negotiations)) {
-                      latestStatus = getLatest(c.clm.negotiations);
-                    } else if (getLatest(c.clm.creation)) {
-                      latestStatus = getLatest(c.clm.creation);
-                    }
-                  }
-
-                  let chipClass = 'chip-open';
-                  if (latestStatus === 'Breach') chipClass = 'chip-crit';
-                  else if (latestStatus === 'Active' || latestStatus === 'Signed' || latestStatus === 'Renewed') chipClass = 'chip-done';
-                  else if (latestStatus !== 'N/A') chipClass = 'chip-progress';
-
-                  const vendorDisp = c.vendorNameBase === 'Other' ? (c.vendorNameOther || 'Other') : (c.vendorNameBase || '—');
-
-                  return \`<tr style="\${isActive ? 'background:var(--input-bg)' : ''}; cursor:pointer" data-act="sel-contract" data-id="\${c.createdAt}">
-                      <td><span class="mono-font" style="color:var(--accent);font-weight:700">\${c.reportNo || '—'}</span></td>
-                      <td>\${c.title || '—'}</td>
-                      <td>\${c.issuedGroup || '—'}</td>
-                      <td>\${vendorDisp}</td>
-                      <td>\${c.startDate ? fmtDate({ happeningDate: c.startDate }) : '—'}</td>
-                      <td>\${c.endDate ? fmtDate({ happeningDate: c.endDate }) : '—'}</td>
-                      <td><span class="status-chip \${chipClass}">\${latestStatus}</span></td>
-                  </tr>\`;
-              }).join('')}
-              </tbody></table>`}
+          <div class="table-panel" id="cm-contract-list-wrapper" style="padding:0;border:none;display:none;margin-top:10px;">
+              ${contracts.length === 0 ? `<div class="empty-state">No records found. Create one in Record Input.</div>` :
+              `<table class="list">
+                  <thead>
+                      <tr>
+                          <th>Record No.</th>
+                          <th>Title</th>
+                          <th>Criteria</th>
+                          <th>Vendor</th>
+                          <th>Start Date</th>
+                          <th>End Date</th>
+                          <th>CLM Status</th>
+                      </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+              </table>`}
           </div>
       </div>`;
 
